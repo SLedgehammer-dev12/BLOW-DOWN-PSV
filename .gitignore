@@ -1,0 +1,7 @@
+__pycache__/
+build/
+dist/
+*.spec
+*.log
+verify_updates.py
+github_release_urllib.py
