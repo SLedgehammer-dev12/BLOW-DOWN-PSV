@@ -92,19 +92,37 @@ class UnitConverter:
             return value * self.volume_map[unit]
         raise ValueError(f"Geçersiz hacim birimi: {unit_str}")
 
-    def convert_volumetric_flow_to_mass(self, value, unit_str, composition):
+    def convert_flow_rate_to_kg_h(self, value, unit_str, composition):
         unit = unit_str.lower().strip()
-        if unit == 'mmscfd':
-            T_std_k = 288.7
-            P_std_pa = P_ATM
-            scmh_value = value * 1179.86
+        
+        # Mass Flow
+        if unit == 'kg/h': return value
+        if unit == 'lb/h': return value * 0.453592
+        if unit == 'kg/s': return value * 3600.0
+        
+        # Volumetric Flow
+        MW_mix_kg_kmol = sum(CP.PropsSI('M', g) * f for g, f in composition.items()) * 1000.0
+        
+        t_std = 273.15
+        p_std = 101325.0
+        scmh = 0
+        
+        if unit in ['nm3/h', 'scmh']:
+            scmh = value
+            t_std = 273.15
+        elif unit == 'sm3/h':
+            scmh = value
+            t_std = 288.15
+        elif unit == 'scfm':
+            scmh = value * 1.6990
+            t_std = 288.71
+        elif unit == 'mmscfd':
+            scmh = value * 1179.86
+            t_std = 288.71
         else:
-            T_std_k = 273.15
-            P_std_pa = P_ATM
-            scmh_value = value * self.flow_rate_map.get(unit, 1.0)
+            raise ValueError(f"Geçersiz debi birimi: {unit_str}")
             
-        MW_mix = sum(CP.PropsSI('M', g) * f for g, f in composition.items()) * 1000
-        mass_flow_kg_h = scmh_value * (P_std_pa * MW_mix) / (R_U * T_std_k)
+        mass_flow_kg_h = scmh * (p_std * MW_mix_kg_kmol) / (R_U * t_std)
         return mass_flow_kg_h
 
     def convert_area(self, value, unit_str):
@@ -232,6 +250,43 @@ def get_h_inner(T_gas, T_wall, P_gas, state):
         return min(max(h_inner, 2.0), 300.0)
     except Exception as e:
         return 10.0 # Safe fallback
+
+def find_psv_area_by_flow_rate(inputs):
+    """
+    Directly calculates required orifice area using API 520 mass flow equation.
+    inputs requires: 'W_req_kg_h', 'p0_pa', 'T0_k', 'composition', 'Cd', 'Kb'
+    """
+    W_kg_s = inputs['W_req_kg_h'] / 3600.0
+    p_sys = inputs['p0_pa']
+    T_sys = inputs['T0_k']
+    comp = inputs['composition']
+    p_downstream = P_ATM
+    
+    state = CP.AbstractState("HEOS", "&".join(comp.keys()))
+    state.set_mole_fractions(list(comp.values()))
+    state.update(CP.PT_INPUTS, p_sys, T_sys)
+    
+    k = state.cpmass() / state.cvmass()
+    Z = state.compressibility_factor()
+    MW = state.molar_mass() * 1000.0
+    
+    pr_crit = (2 / (k + 1))**(k / (k - 1))
+    is_choked = (p_downstream / p_sys) <= pr_crit
+    
+    Cd = inputs.get('Cd', 0.975)
+    Kb = inputs.get('Kb', 1.0)
+    
+    if is_choked:
+        term1 = math.sqrt(k * MW / (Z * R_U * T_sys))
+        term2 = (2 / (k + 1))**((k + 1) / (2 * (k - 1)))
+        A_req_m2 = W_kg_s / (Cd * Kb * p_sys * term1 * term2)
+    else:
+        beta = p_downstream / p_sys
+        radicand = max(1e-9, beta**(2/k) - beta**((k+1)/k))
+        term1 = math.sqrt((2 * k * MW) / ((k - 1) * Z * R_U * T_sys))
+        A_req_m2 = W_kg_s / (Cd * Kb * p_sys * term1 * math.sqrt(radicand))
+        
+    return A_req_m2, is_choked
 
 def run_blowdown_simulation_v3(inputs, vana_alani_m2, progress_callback=None, abort_flag=None, silent=False):
     """
@@ -455,23 +510,33 @@ class Application(tk.Tk):
         self.canvas.get_tk_widget().grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
 
     def create_main_settings(self, frame):
-        ttk.Label(frame, text="Sistem Tipi:").grid(row=0, column=0, padx=5, sticky="w")
+        # Mode Selection
+        ttk.Label(frame, text="Analiz Modu:").grid(row=0, column=0, padx=5, pady=2, sticky="w")
+        self.mode_combo = ttk.Combobox(frame, values=["Zamana Bağlı Basınç Düşürme (Blowdown)", "Gerekli Debiye Göre Emniyet Vanası Çapı (PSV Sizing)"], state="readonly")
+        self.mode_combo.grid(row=0, column=1, padx=5, pady=2, sticky="ew")
+        self.mode_combo.set("Zamana Bağlı Basınç Düşürme (Blowdown)")
+        self.mode_combo.bind("<<ComboboxSelected>>", self.on_mode_change)
+
+        self.sys_type_lbl = ttk.Label(frame, text="Sistem Tipi:")
+        self.sys_type_lbl.grid(row=1, column=0, padx=5, pady=2, sticky="w")
         self.sys_type_combo = ttk.Combobox(frame, values=["Boru Hattı (Pipeline)", "Tank (Vessel)"], state="readonly")
-        self.sys_type_combo.grid(row=0, column=1, padx=5, sticky="ew")
+        self.sys_type_combo.grid(row=1, column=1, padx=5, pady=2, sticky="ew")
         self.sys_type_combo.set("Boru Hattı (Pipeline)")
         
         geom_frame = ttk.LabelFrame(frame, text="Geometri ve Proses Şartları")
-        geom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        geom_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         geom_frame.columnconfigure(1, weight=1)
         
         self.entries = {}
         self.unit_combos = {}
+        self.entry_frames = {}
         
         inputs_config = [
             ("İç Çap", "mm", ["mm", "m", "cm", "in", "ft"]),
             ("Uzunluk", "m", ["m", "mm", "cm", "in", "ft"]),
             ("Et Kalınlığı", "mm", ["mm", "m", "cm", "in", "ft"]),
             ("Toplam Hacim", "m3", ["m3", "L", "gal", "ft3"]),
+            ("Gerekli Tahliye Debisi", "kg/h", ["kg/h", "lb/h", "Nm3/h", "Sm3/h", "SCFM", "MMSCFD"]),
             ("Başlangıç Basıncı", "barg", ["barg", "bara", "psi", "psig", "atm", "Pa", "kPa", "MPa"]),
             ("Başlangıç Sıcaklığı", "C", ["C", "K", "F", "R"]),
             ("Hedef Blowdown Süresi", "s", ["s"]),
@@ -482,7 +547,8 @@ class Application(tk.Tk):
         ]
         
         for i, (text, default_unit, units) in enumerate(inputs_config):
-            ttk.Label(geom_frame, text=text + ":").grid(row=i, column=0, padx=5, pady=5, sticky="w")
+            lbl = ttk.Label(geom_frame, text=text + ":")
+            lbl.grid(row=i, column=0, padx=5, pady=5, sticky="w")
             
             entry_frame = ttk.Frame(geom_frame)
             entry_frame.grid(row=i, column=1, padx=5, pady=5, sticky="ew")
@@ -499,21 +565,146 @@ class Application(tk.Tk):
             combo.grid(row=0, column=1, padx=(5, 0))
             combo.set(default_unit)
             self.unit_combos[text] = combo
+            
+            self.entry_frames[text] = (lbl, entry_frame)
 
         self.ht_enabled_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(frame, text="Isıl Analiz (Heat Transfer) Aktif", variable=self.ht_enabled_var).grid(row=len(inputs_config), column=0, columnspan=2, pady=5, sticky="w", padx=5)
+        self.ht_check = ttk.Checkbutton(frame, text="Isıl Analiz (Heat Transfer) Aktif", variable=self.ht_enabled_var)
+        self.ht_check.grid(row=3, column=0, columnspan=2, pady=5, sticky="w", padx=5)
 
-        self.btn_run = ttk.Button(frame, text="V3 Analizini Başlat (Enerji Balansı + MDMT)", command=self.start_calculation_thread)
-        self.btn_run.grid(row=3, column=0, columnspan=2, pady=10, sticky="ew")
+        self.btn_run = ttk.Button(frame, text="V3 Analizini Başlat (Enerji Balansı + MDMT)", command=self.handle_run_button)
+        self.btn_run.grid(row=4, column=0, columnspan=2, pady=10, sticky="ew")
         
         self.btn_abort = ttk.Button(frame, text="Durdur", state=tk.DISABLED, command=self.abort_simulation)
-        self.btn_abort.grid(row=4, column=0, columnspan=2, pady=5, sticky="ew")
+        self.btn_abort.grid(row=5, column=0, columnspan=2, pady=5, sticky="ew")
         
         self.progress_label = ttk.Label(frame, text="")
-        self.progress_label.grid(row=5, column=0, columnspan=2)
+        self.progress_label.grid(row=6, column=0, columnspan=2)
         
         self.progress = ttk.Progressbar(frame, orient="horizontal", mode="determinate")
-        self.progress.grid(row=6, column=0, columnspan=2, pady=5, sticky="ew")
+        self.progress.grid(row=7, column=0, columnspan=2, pady=5, sticky="ew")
+        
+        # Initial UI setup
+        self.on_mode_change()
+
+    def on_mode_change(self, event=None):
+        mode = self.mode_combo.get()
+        if "Blowdown" in mode:
+            for field in ["İç Çap", "Uzunluk", "Et Kalınlığı", "Toplam Hacim", "Hedef Blowdown Süresi", "Hedef Blowdown Basıncı"]:
+                self.entry_frames[field][0].grid()
+                self.entry_frames[field][1].grid()
+            self.entry_frames["Gerekli Tahliye Debisi"][0].grid_remove()
+            self.entry_frames["Gerekli Tahliye Debisi"][1].grid_remove()
+            self.sys_type_combo.grid()
+            self.sys_type_lbl.grid()
+            self.ht_check.grid()
+            self.btn_run.config(text="V3 Analizini Başlat (Enerji Balansı + MDMT)")
+            self.btn_abort.grid()
+            self.progress.grid()
+            self.progress_label.grid()
+        else:
+            for field in ["İç Çap", "Uzunluk", "Et Kalınlığı", "Toplam Hacim", "Hedef Blowdown Süresi", "Hedef Blowdown Basıncı"]:
+                self.entry_frames[field][0].grid_remove()
+                self.entry_frames[field][1].grid_remove()
+            self.entry_frames["Gerekli Tahliye Debisi"][0].grid()
+            self.entry_frames["Gerekli Tahliye Debisi"][1].grid()
+            self.sys_type_combo.grid_remove()
+            self.sys_type_lbl.grid_remove()
+            self.ht_check.grid_remove()
+            self.btn_run.config(text="PSV Çapını Hesapla (API 520)")
+            self.btn_abort.grid_remove()
+            self.progress.grid_remove()
+            self.progress_label.grid_remove()
+
+    def handle_run_button(self):
+        mode = self.mode_combo.get()
+        if "Blowdown" in mode:
+            self.start_calculation_thread()
+        else:
+            self.run_psv_sizing()
+
+    def run_psv_sizing(self):
+        try:
+            self.results_text.config(state=tk.NORMAL)
+            self.results_text.delete(1.0, tk.END)
+            self.results_text.insert(tk.END, "Hesaplanıyor... Lütfen bekleyin.\n\n")
+            self.results_text.config(state=tk.DISABLED)
+            self.update_idletasks()
+
+            inputs = {'composition': self.composition}
+            if not inputs['composition']: raise ValueError("Lütfen en az 1 gaz ekleyin.")
+            
+            # Normalize composition to 100%
+            total_pct = sum(self.composition.values())
+            inputs['composition'] = {k: v/total_pct for k,v in self.composition.items()}
+
+            def get_val(key):
+                val = self.entries[key].get().strip()
+                return float(val) if val else None
+
+            def get_unit(key):
+                return self.unit_combos[key].get()
+
+            flow_val = get_val("Gerekli Tahliye Debisi")
+            p0_val = get_val("Başlangıç Basıncı")
+            T0_val = get_val("Başlangıç Sıcaklığı")
+            
+            if flow_val is None or p0_val is None or T0_val is None:
+                raise ValueError("Tahliye Debisi, Basınç ve Sıcaklık alanları zorunludur.")
+
+            inputs['W_req_kg_h'] = self.converter.convert_flow_rate_to_kg_h(flow_val, get_unit("Gerekli Tahliye Debisi"), inputs['composition'])
+            inputs['p0_pa'] = self.converter.convert_pressure(p0_val, get_unit("Başlangıç Basıncı"))
+            inputs['T0_k'] = self.converter.convert_temperature(T0_val, get_unit("Başlangıç Sıcaklığı"))
+            
+            inputs['Cd'] = get_val("Discharge Coeff (Cd)") or 0.975
+            inputs['Kb'] = get_val("Backpressure Coeff (Kb)") or 1.0
+
+            A_req_m2, is_choked = find_psv_area_by_flow_rate(inputs)
+            A_req_mm2 = A_req_m2 * 1e6
+
+            valve_type = self.valve_type_combo.get()
+            selected_valve = None
+            
+            if "API 526" in valve_type:
+                api_data = load_api526_data()
+                for orifice in api_data:
+                    if orifice.area_mm2 >= A_req_mm2:
+                        selected_valve = orifice
+                        break
+            else:
+                api6d_data = load_api6d_valves()
+                for v in api6d_data:
+                    if v.area_m2 >= A_req_m2:
+                        selected_valve = v
+                        break
+
+            self.results_text.config(state=tk.NORMAL)
+            self.results_text.delete(1.0, tk.END)
+            self.results_text.insert(tk.END, "=== API 520 PSV ÇAP HESABI SONUÇLARI ===\n\n")
+            self.results_text.insert(tk.END, f"Hesaplanan İdeal Orifis Alanı : {A_req_mm2:.2f} mm2\n")
+            self.results_text.insert(tk.END, f"Akış Rejimi                 : {'Kritik (Choked)' if is_choked else 'Alt-Kritik (Subcritical)'}\n")
+            self.results_text.insert(tk.END, f"Tahliye Debisi (Kütlesel)    : {inputs['W_req_kg_h']:.2f} kg/h\n\n")
+
+            if selected_valve:
+                self.results_text.insert(tk.END, "--- SEÇİLEN VANA ---\n")
+                if "API 526" in valve_type:
+                     self.results_text.insert(tk.END, f"Orifis Harfi       : {selected_valve.letter}\n")
+                     self.results_text.insert(tk.END, f"Gerçek Vana Alanı  : {selected_valve.area_mm2:.1f} mm2\n")
+                     self.results_text.insert(tk.END, f"Önerilen Flanş Tipi: {selected_valve.size_inch} ({selected_valve.size_dn})\n")
+                else:
+                     self.results_text.insert(tk.END, f"Vana Çapı (İç)     : {selected_valve.dn_size}\n")
+                     self.results_text.insert(tk.END, f"Gerçek Vana Alanı  : {(selected_valve.area_m2 * 1e6):.1f} mm2\n")
+            else:
+                 self.results_text.insert(tk.END, "Uyarı: Gerekli alan standart tabloların (T Orifis vb.) üzerindedir.\nÇoklu vana kullanımı değerlendirilmelidir.\n")
+                 
+            self.results_text.config(state=tk.DISABLED)
+
+        except Exception as e:
+            messagebox.showerror("Hata", f"Hesaplama hatası:\n{str(e)}")
+            self.results_text.config(state=tk.NORMAL)
+            self.results_text.insert(tk.END, f"\nHATA: {e}")
+            self.results_text.config(state=tk.DISABLED)
+
 
     def create_gas_settings(self, frame):
         # Top part: Search and Listbox
