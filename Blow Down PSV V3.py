@@ -7,7 +7,7 @@ import logging
 from collections import namedtuple
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, scrolledtext
 import json
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
@@ -15,6 +15,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 import threading
 import os
+import urllib.request
+import urllib.error
+import webbrowser
 import math
 from api2000_engine import calculate_api2000_venting
 
@@ -22,6 +25,7 @@ from api2000_engine import calculate_api2000_venting
 R_U = 8314.462618  # Universal gas constant (J/kmol·K)
 P_ATM = 101325     # Standard atmospheric pressure (Pa)
 T_STD = 288.7      # Standard temperature (288.7 K = 60°F)
+APP_VERSION = "v2.3"
 
 API526_Orifice = namedtuple('API526_Orifice', ['letter', 'area_in2', 'area_mm2', 'size_in', 'size_dn'])
 # API 6D Full Bore Ball Valve data: Size (Inch), Area (mm2), Size (DN)
@@ -246,12 +250,83 @@ def get_h_inner(T_gas, T_wall, P_gas, state):
             Nu = 1.36 * (Ra ** 0.20)
             
         h_inner = Nu * cond / L_char
+        h_inner = Nu * cond / L_char
         # Cap abnormal values
         return min(max(h_inner, 2.0), 300.0)
     except Exception as e:
         return 10.0 # Safe fallback
 
+def parse_outlet_diameter_mm(size_dn_str):
+    try:
+        first_option = size_dn_str.split('/')[0].strip()
+        outlet_part = first_option.split('x')[-1].strip()
+        dn_val = ''.join(filter(str.isdigit, outlet_part))
+        return float(dn_val)
+    except:
+        return 50.0 # fallback
+
+def calculate_reaction_force(W_kg_s, T1_k, p1_pa, A_orifice_m2, k, MW_kg_kmol):
+    # API 520 Part II Method for Gas
+    R_spec = R_U / MW_kg_kmol
+    P_throat = p1_pa * ((2 / (k + 1))**(k / (k - 1)))
+    T_throat = T1_k * (2 / (k + 1))
+    v_throat = math.sqrt(k * R_spec * T_throat)
+    if P_throat < P_ATM: P_throat = P_ATM
+    F_newtons = W_kg_s * v_throat + (P_throat - P_ATM) * A_orifice_m2
+    return F_newtons
+
+def update_state_from_rho_u_gas(state, rho_kg_m3, u_target_j_kg, t_guess_k):
+    """
+    CoolProp does not support Dmass-Umass flashes for mixtures.
+    Solve the gas state via a bounded rho-T search against target umass.
+    """
+    rho_kg_m3 = max(rho_kg_m3, 1e-9)
+    t_guess_k = max(t_guess_k, 80.0)
+    state.specify_phase(CP.iphase_gas)
+
+    def eval_u(temp_k):
+        state.update(CP.DmassT_INPUTS, rho_kg_m3, temp_k)
+        return state.umass()
+
+    t_low = max(80.0, min(t_guess_k * 0.5, t_guess_k - 100.0))
+    t_high = max(350.0, t_guess_k + 100.0, t_guess_k * 1.5)
+
+    u_low = eval_u(t_low)
+    u_high = eval_u(t_high)
+
+    for _ in range(25):
+        if u_low <= u_target_j_kg <= u_high:
+            break
+        if u_target_j_kg < u_low:
+            next_low = max(60.0, t_low * 0.8)
+            if next_low == t_low:
+                break
+            t_low = next_low
+            u_low = eval_u(t_low)
+        else:
+            t_high *= 1.2
+            u_high = eval_u(t_high)
+    else:
+        raise ValueError("Unable to bracket rho-u gas state for blowdown step.")
+
+    if not (u_low <= u_target_j_kg <= u_high):
+        raise ValueError("Unable to bracket rho-u gas state for blowdown step.")
+
+    for _ in range(60):
+        t_mid = 0.5 * (t_low + t_high)
+        u_mid = eval_u(t_mid)
+        if abs(u_mid - u_target_j_kg) <= 1e-6 * max(1.0, abs(u_target_j_kg)):
+            break
+        if u_mid < u_target_j_kg:
+            t_low = t_mid
+        else:
+            t_high = t_mid
+
+    state.update(CP.DmassT_INPUTS, rho_kg_m3, 0.5 * (t_low + t_high))
+    return state
+
 def find_psv_area_by_flow_rate(inputs):
+
     """
     Directly calculates required orifice area using API 520 mass flow equation.
     inputs requires: 'W_req_kg_h', 'p0_pa', 'T0_k', 'composition', 'Cd', 'Kb'
@@ -260,10 +335,11 @@ def find_psv_area_by_flow_rate(inputs):
     p_sys = inputs['p0_pa']
     T_sys = inputs['T0_k']
     comp = inputs['composition']
-    p_downstream = P_ATM
+    p_downstream = inputs.get('p_downstream', P_ATM)
     
     state = CP.AbstractState("HEOS", "&".join(comp.keys()))
     state.set_mole_fractions(list(comp.values()))
+    state.specify_phase(CP.iphase_gas)
     state.update(CP.PT_INPUTS, p_sys, T_sys)
     
     k = state.cpmass() / state.cvmass()
@@ -286,7 +362,7 @@ def find_psv_area_by_flow_rate(inputs):
         term1 = math.sqrt((2 * k * MW) / ((k - 1) * Z * R_U * T_sys))
         A_req_m2 = W_kg_s / (Cd * Kb * p_sys * term1 * math.sqrt(radicand))
         
-    return A_req_m2, is_choked
+    return A_req_m2, is_choked, k, MW, state.hmass(), Z, pr_crit, state.rhomass()
 
 def run_blowdown_simulation_v3(inputs, vana_alani_m2, progress_callback=None, abort_flag=None, silent=False):
     """
@@ -306,16 +382,17 @@ def run_blowdown_simulation_v3(inputs, vana_alani_m2, progress_callback=None, ab
     M_steel = inputs.get('M_steel', 100.0)
     Cp_steel = 480.0
     
-    p_downstream = P_ATM
+    p_downstream = inputs.get('p_downstream', P_ATM)
     zaman_serisi = []
     
     state = CP.AbstractState("HEOS", "&".join(comp.keys()))
     state.set_mole_fractions(list(comp.values()))
+    state.specify_phase(CP.iphase_gas)
     state.update(CP.PT_INPUTS, p_sys, T_sys)
     
     U_mass = state.umass()
     MW = state.molar_mass() * 1000
-    m_fluid = p_sys * V_sys / (state.compressibility_factor() * (R_U / MW) * T_sys)
+    m_fluid = state.rhomass() * V_sys
     
     t = 0
     dt = max(0.01, min(0.5, target_time / 1000.0))
@@ -332,17 +409,14 @@ def run_blowdown_simulation_v3(inputs, vana_alani_m2, progress_callback=None, ab
             return None
             
         try:
-            state.update(CP.DmassUmass_INPUTS, m_fluid/V_sys, U_mass)
+            update_state_from_rho_u_gas(state, m_fluid / V_sys, U_mass, T_sys)
             p_sys = state.p()
             T_sys = state.T()
             k = state.cpmass() / state.cvmass()
             Z = state.compressibility_factor()
             H_mass = state.hmass()
-        except:
-            # Emergency stability fallback
-            p_sys *= 0.99
-            T_sys *= 0.99
-            k, Z, H_mass = 1.3, 0.9, U_mass + p_sys/(m_fluid/V_sys)
+        except Exception as exc:
+            raise RuntimeError(f"Blowdown state update failed at t={t:.2f}s") from exc
             
         if p_sys <= target_pressure: break
             
@@ -370,6 +444,12 @@ def run_blowdown_simulation_v3(inputs, vana_alani_m2, progress_callback=None, ab
         if dP < 0.005: dt = min(dt * 1.2, 5.0)
         elif dP > 0.02: dt = max(dt / 1.5, 0.001)
         
+        zaman_serisi.append({
+            't': t, 'p_sys': p_sys, 'mdot_kg_s': dm_kg_s,
+            'T_sys': T_sys, 'T_wall': T_wall, 'h_in': h_in,
+            'rho_g': state.rhomass(), 'm_sys': m_fluid
+        })
+
         t += dt
         if not silent and progress_callback and int(t/max(0.001, dt)) % 20 == 0:
             progress_callback(t, target_time)
@@ -377,7 +457,11 @@ def run_blowdown_simulation_v3(inputs, vana_alani_m2, progress_callback=None, ab
         if t > max_t: break
             
     if silent: return t
-    return pd.DataFrame(zaman_serisi + [{'t': t, 'p_sys': p_sys, 'mdot_kg_s': dm_kg_s, 'T_sys': T_sys, 'T_wall': T_wall, 'h_in': h_in}])
+    return pd.DataFrame(zaman_serisi + [{
+        't': t, 'p_sys': p_sys, 'mdot_kg_s': dm_kg_s,
+        'T_sys': T_sys, 'T_wall': T_wall, 'h_in': h_in,
+        'rho_g': state.rhomass(), 'm_sys': m_fluid
+    }])
 
 def find_blowdown_area_v3(inputs, progress_callback=None, abort_flag=None):
     target_time = inputs['t_target_sec']
@@ -405,7 +489,7 @@ def find_blowdown_area_v3(inputs, progress_callback=None, abort_flag=None):
 class Application(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.title("Blowdown Simülasyonu - V3 (Pipeline & Isı Transferi)")
+        self.title(f"Blowdown Simülasyonu - {APP_VERSION} (Pipeline & Isı Transferi)")
         self.geometry("1000x850")
         self.converter = UnitConverter()
         
@@ -419,6 +503,9 @@ class Application(tk.Tk):
         self.abort_flag = threading.Event()
         self.create_widgets()
         self.setup_logging()
+        
+        # Start auto-update check in background
+        self.check_for_updates(manual=False)
 
     def setup_logging(self):
         handler = TkinterHandler(self.log_text)
@@ -438,6 +525,7 @@ class Application(tk.Tk):
         
         helpmenu = tk.Menu(menubar, tearoff=0)
         helpmenu.add_command(label="Metodoloji (API 520/521/2000)", command=self.show_methodology)
+        helpmenu.add_command(label="Güncellemeleri Kontrol Et...", command=lambda: self.check_for_updates(manual=True))
         menubar.add_cascade(label="Yardım", menu=helpmenu)
         
         self.config(menu=menubar)
@@ -446,10 +534,12 @@ class Application(tk.Tk):
         self.notebook.pack(pady=5, expand=True, fill="both", padx=5)
         
         self.main_tab = ttk.Frame(self.notebook)
+        self.graphs_tab = ttk.Frame(self.notebook)
         self.api2000_tab = ttk.Frame(self.notebook)
         self.log_tab = ttk.Frame(self.notebook)
         
         self.notebook.add(self.main_tab, text="Blowdown Analizi")
+        self.notebook.add(self.graphs_tab, text="Grafikler")
         self.notebook.add(self.api2000_tab, text="Tank Havalandırma (API 2000)")
         self.notebook.add(self.log_tab, text="Loglar")
 
@@ -475,6 +565,119 @@ class Application(tk.Tk):
         self.create_right_pane(self.right_pane)
         self.create_api2000_pane(self.api2000_tab)
 
+    def check_for_updates(self, manual=False):
+        def _check():
+            try:
+                url = "https://api.github.com/repos/SLedgehammer-dev12/BLOW-DOWN-PSV/releases/latest"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    data = json.loads(response.read().decode())
+                
+                latest_version = data.get("tag_name", "")
+                
+                def v_val(v):
+                    nums = [int(n) for n in __import__("re").findall(r"\d+", v)]
+                    return nums if nums else [0]
+
+                if latest_version and v_val(latest_version) > v_val(APP_VERSION):
+                    self.after(0, self._prompt_update, latest_version, data)
+                elif manual:
+                    self.after(0, lambda: messagebox.showinfo("Güncelleme Kontrolü", f"Programınız şu anki en güncel sürümdedir ({APP_VERSION})."))
+            except Exception as e:
+                logging.error(f"Updates fetch failed: {e}")
+                if manual:
+                    self.after(0, lambda: messagebox.showerror("Hata", "Güncelleme sunucusuna bağlanılamadı. Lütfen internet bağlantınızı kontrol edin."))
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _prompt_update(self, latest_version, release_data):
+        release_page = release_data.get("html_url", "")
+        ans = messagebox.askyesnocancel(
+            "Yeni Sürüm Bulundu",
+            f"Programın yeni bir sürümü yayımlanmış!\n"
+            f"Mevcut: {APP_VERSION} -> Yeni: {latest_version}\n\n"
+            "Evet: Varsayılan İndirilenler klasörüne indir\n"
+            "Hayır: Kayıt konumunu sen seç\n"
+            "İptal: İndirmeden çık"
+        )
+        if ans is None:
+            return
+        save_path = self._choose_update_download_path(release_data) if ans is False else self._default_update_download_path(release_data)
+        if not save_path:
+            return
+        self._start_update_download(release_data, save_path, release_page)
+
+    def _select_release_asset(self, release_data):
+        assets = release_data.get("assets", [])
+        if not assets:
+            return None
+        exe_asset = next((a for a in assets if a.get("name", "").lower().endswith(".exe")), None)
+        return exe_asset or assets[0]
+
+    def _default_update_download_path(self, release_data):
+        asset = self._select_release_asset(release_data)
+        if not asset:
+            return None
+        downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        return os.path.join(downloads_dir, asset.get("name", f"update_{release_data.get('tag_name', 'latest')}"))
+
+    def _choose_update_download_path(self, release_data):
+        asset = self._select_release_asset(release_data)
+        if not asset:
+            messagebox.showwarning("Güncelleme", "İndirilebilir dosya bulunamadı.")
+            return None
+        initial_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        return filedialog.asksaveasfilename(
+            title="Güncelleme Dosyasını Kaydet",
+            initialdir=initial_dir,
+            initialfile=asset.get("name", ""),
+            defaultextension=os.path.splitext(asset.get("name", ""))[1] or ".exe",
+            filetypes=[("Yürütülebilir Dosya", "*.exe"), ("Tüm Dosyalar", "*.*")]
+        )
+
+    def _start_update_download(self, release_data, save_path, release_page=""):
+        asset = self._select_release_asset(release_data)
+        if not asset:
+            messagebox.showwarning("Güncelleme", "İndirilebilir dosya bulunamadı.")
+            if release_page:
+                webbrowser.open(release_page)
+            return
+
+        download_url = asset.get("browser_download_url")
+        if not download_url:
+            messagebox.showwarning("Güncelleme", "İndirme bağlantısı bulunamadı.")
+            if release_page:
+                webbrowser.open(release_page)
+            return
+
+        def _download():
+            try:
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response, open(save_path, "wb") as out_file:
+                    total_size = int(response.headers.get("Content-Length", "0") or 0)
+                    downloaded = 0
+                    chunk_size = 1024 * 256
+                    while True:
+                        chunk = response.read(chunk_size)
+                        if not chunk:
+                            break
+                        out_file.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            pct = downloaded / total_size * 100.0
+                            self.after(0, lambda p=pct: self.progress_label.config(text=f"Güncelleme indiriliyor... %{p:.1f}"))
+                logging.info(f"Güncelleme dosyası indirildi: {save_path}")
+                self.after(0, lambda: messagebox.showinfo("Güncelleme", f"Yeni sürüm indirildi:\n{save_path}"))
+                self.after(0, lambda: self.progress_label.config(text="Güncelleme indirildi."))
+            except Exception as e:
+                logging.error(f"Update download failed: {e}")
+                self.after(0, lambda: messagebox.showerror("Güncelleme", f"Güncelleme indirilemedi:\n{e}"))
+                self.after(0, lambda: self.progress_label.config(text="Güncelleme indirilemedi."))
+
+        self.progress_label.config(text="Güncelleme indiriliyor...")
+        threading.Thread(target=_download, daemon=True).start()
+            
     def create_left_pane(self, parent):
         # Valve Type selection
         type_frame = ttk.LabelFrame(parent, text="Vana Seçimi")
@@ -497,17 +700,19 @@ class Application(tk.Tk):
 
     def create_right_pane(self, parent):
         parent.columnconfigure(0, weight=1)
-        parent.rowconfigure(1, weight=1)
+        parent.rowconfigure(0, weight=1)
 
-        # Results Text
-        self.results_text = tk.Text(parent, height=10, bg="#f0f0f0", font=("Consolas", 10))
-        self.results_text.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
+        # Results Text (Expanded)
+        self.results_text = tk.Text(parent, bg="#f0f0f0", font=("Consolas", 11))
+        self.results_text.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         self.results_text.config(state=tk.DISABLED)
 
-        # Graphs
+        # Graphs in Graphs Tab
+        self.graphs_tab.columnconfigure(0, weight=1)
+        self.graphs_tab.rowconfigure(0, weight=1)
         self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(6, 8))
-        self.canvas = FigureCanvasTkAgg(self.fig, master=parent)
-        self.canvas.get_tk_widget().grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.graphs_tab)
+        self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
     def create_main_settings(self, frame):
         # Mode Selection
@@ -543,6 +748,7 @@ class Application(tk.Tk):
             ("Hedef Blowdown Basıncı", "barg", ["barg", "bara", "psi", "psig", "atm", "Pa", "kPa", "MPa"]),
             ("Vana Sayısı", "Adet", ["Adet"]),
             ("Discharge Coeff (Cd)", "", [""]),
+            ("Backpressure (Karşı Basınç)", "barg", ["barg", "bara", "psi", "psig", "atm"]),
             ("Backpressure Coeff (Kb)", "", [""])
         ]
         
@@ -559,6 +765,7 @@ class Application(tk.Tk):
             if text == "Vana Sayısı": entry.insert(0, "1")
             if text == "Discharge Coeff (Cd)": entry.insert(0, "0.975")
             if text == "Backpressure Coeff (Kb)": entry.insert(0, "1.0")
+            if text == "Backpressure (Karşı Basınç)": entry.insert(0, "0")
             self.entries[text] = entry
             
             combo = ttk.Combobox(entry_frame, values=units, state="readonly", width=8)
@@ -572,7 +779,7 @@ class Application(tk.Tk):
         self.ht_check = ttk.Checkbutton(frame, text="Isıl Analiz (Heat Transfer) Aktif", variable=self.ht_enabled_var)
         self.ht_check.grid(row=3, column=0, columnspan=2, pady=5, sticky="w", padx=5)
 
-        self.btn_run = ttk.Button(frame, text="V3 Analizini Başlat (Enerji Balansı + MDMT)", command=self.handle_run_button)
+        self.btn_run = ttk.Button(frame, text=f"{APP_VERSION} Analizini Başlat (Enerji Balansı + MDMT)", command=self.handle_run_button)
         self.btn_run.grid(row=4, column=0, columnspan=2, pady=10, sticky="ew")
         
         self.btn_abort = ttk.Button(frame, text="Durdur", state=tk.DISABLED, command=self.abort_simulation)
@@ -598,7 +805,9 @@ class Application(tk.Tk):
             self.sys_type_combo.grid()
             self.sys_type_lbl.grid()
             self.ht_check.grid()
-            self.btn_run.config(text="V3 Analizini Başlat (Enerji Balansı + MDMT)")
+            self.entry_frames["Backpressure (Karşı Basınç)"][0].grid_remove()
+            self.entry_frames["Backpressure (Karşı Basınç)"][1].grid_remove()
+            self.btn_run.config(text=f"{APP_VERSION} Analizini Başlat (Enerji Balansı + MDMT)")
             self.btn_abort.grid()
             self.progress.grid()
             self.progress_label.grid()
@@ -611,6 +820,8 @@ class Application(tk.Tk):
             self.sys_type_combo.grid_remove()
             self.sys_type_lbl.grid_remove()
             self.ht_check.grid_remove()
+            self.entry_frames["Backpressure (Karşı Basınç)"][0].grid()
+            self.entry_frames["Backpressure (Karşı Basınç)"][1].grid()
             self.btn_run.config(text="PSV Çapını Hesapla (API 520)")
             self.btn_abort.grid_remove()
             self.progress.grid_remove()
@@ -648,54 +859,143 @@ class Application(tk.Tk):
             flow_val = get_val("Gerekli Tahliye Debisi")
             p0_val = get_val("Başlangıç Basıncı")
             T0_val = get_val("Başlangıç Sıcaklığı")
+            pb_val = get_val("Backpressure (Karşı Basınç)")
             
-            if flow_val is None or p0_val is None or T0_val is None:
-                raise ValueError("Tahliye Debisi, Basınç ve Sıcaklık alanları zorunludur.")
+            if flow_val is None or p0_val is None or T0_val is None or pb_val is None:
+                raise ValueError("Tahliye Debisi, Basınç, Karşı Basınç ve Sıcaklık alanları zorunludur.")
 
             inputs['W_req_kg_h'] = self.converter.convert_flow_rate_to_kg_h(flow_val, get_unit("Gerekli Tahliye Debisi"), inputs['composition'])
             inputs['p0_pa'] = self.converter.convert_pressure(p0_val, get_unit("Başlangıç Basıncı"))
             inputs['T0_k'] = self.converter.convert_temperature(T0_val, get_unit("Başlangıç Sıcaklığı"))
             
+            p_downstream = self.converter.convert_pressure(pb_val, get_unit("Backpressure (Karşı Basınç)"))
+            inputs['p_downstream'] = p_downstream
+            
             inputs['Cd'] = get_val("Discharge Coeff (Cd)") or 0.975
             inputs['Kb'] = get_val("Backpressure Coeff (Kb)") or 1.0
 
-            A_req_m2, is_choked = find_psv_area_by_flow_rate(inputs)
+            A_req_m2, is_choked, k_val, MW_val, H_mass, Z_val, pr_crit, rho_g = find_psv_area_by_flow_rate(inputs)
             A_req_mm2 = A_req_m2 * 1e6
+            V_req_m3_h = inputs['W_req_kg_h'] / rho_g
+
+            # Multi-Valve Logic
+            vana_sayisi = int(get_val("Vana Sayısı") or 1)
+            A_req_per_valve_m2 = A_req_m2 / vana_sayisi
+            A_req_per_valve_mm2 = A_req_mm2 / vana_sayisi
 
             valve_type = self.valve_type_combo.get()
             selected_valve = None
+            pipe_d_mm = 50.0 # fallback
+            actual_area_m2 = A_req_per_valve_m2
             
             if "API 526" in valve_type:
                 api_data = load_api526_data()
                 for orifice in api_data:
-                    if orifice.area_mm2 >= A_req_mm2:
+                    if orifice.area_mm2 >= A_req_per_valve_mm2:
                         selected_valve = orifice
+                        pipe_d_mm = parse_outlet_diameter_mm(selected_valve.size_dn)
+                        actual_area_m2 = orifice.area_mm2 / 1e6
                         break
             else:
-                api6d_data = load_api6d_valves()
+                api6d_data = load_api6d_data()
                 for v in api6d_data:
-                    if v.area_m2 >= A_req_m2:
+                    if v.area_mm2 >= A_req_per_valve_mm2:
                         selected_valve = v
+                        pipe_d_mm = parse_outlet_diameter_mm(selected_valve.size_dn)
+                        actual_area_m2 = v.area_mm2 / 1e6
                         break
+            
+            # --- ADVANCED CALCULATIONS ---
+            # 1. Backpressure checking
+            bp_pct = (p_downstream / inputs['p0_pa']) * 100.0
+            
+            # 2. Reaction Force (PER VALVE)
+            W_kg_s_per_valve = (inputs['W_req_kg_h'] / 3600.0) / vana_sayisi
+            force_N = calculate_reaction_force(W_kg_s_per_valve, inputs['T0_k'], inputs['p0_pa'], actual_area_m2, k_val, MW_val)
+            force_kgf = force_N / 9.81
+            
+            # 3. Exit Mach Number (Acoustic Velocity) PER VALVE
+            state_down = CP.AbstractState("HEOS", "&".join(inputs['composition'].keys()))
+            state_down.set_mole_fractions(list(inputs['composition'].values()))
+            mach_number = 0.0
+            if selected_valve:
+                try:
+                    state_down.update(CP.HmassP_INPUTS, H_mass, p_downstream)
+                    rho_down = state_down.rhomass()
+                    c_down = state_down.speed_sound()
+                    A_pipe_m2 = math.pi * ((pipe_d_mm / 1000.0) / 2.0)**2
+                    v_down = W_kg_s_per_valve / (rho_down * A_pipe_m2)
+                    mach_number = v_down / c_down
+                except:
+                    mach_number = 0.0
 
             self.results_text.config(state=tk.NORMAL)
             self.results_text.delete(1.0, tk.END)
-            self.results_text.insert(tk.END, "=== API 520 PSV ÇAP HESABI SONUÇLARI ===\n\n")
-            self.results_text.insert(tk.END, f"Hesaplanan İdeal Orifis Alanı : {A_req_mm2:.2f} mm2\n")
-            self.results_text.insert(tk.END, f"Akış Rejimi                 : {'Kritik (Choked)' if is_choked else 'Alt-Kritik (Subcritical)'}\n")
-            self.results_text.insert(tk.END, f"Tahliye Debisi (Kütlesel)    : {inputs['W_req_kg_h']:.2f} kg/h\n\n")
+            self.results_text.insert(tk.END, "====== DETAYLI MÜHENDİSLİK ANALİZ RAPORU ======\n\n", "HEADER")
+            
+            # --- BÖLÜM 1: TERMODİNAMİK VE FİZİKSEL ÖZELLİKLER ---
+            self.results_text.insert(tk.END, "[1] TERMODİNAMİK VE FİZİKSEL ÖZELLİKLER (API 520 Part I, Ek B)\n")
+            self.results_text.insert(tk.END, f"  * Başlangıç Basıncı (P1)      : {(inputs['p0_pa']/1e5):.2f} bara\n")
+            self.results_text.insert(tk.END, f"  * Başlangıç Sıcaklığı (T1)    : {(inputs['T0_k']-273.15):.2f} °C\n")
+            self.results_text.insert(tk.END, f"  * Toplam Kütlesel Debi (W)    : {inputs['W_req_kg_h']:,.2f} kg/h\n")
+            self.results_text.insert(tk.END, f"  * Toplam Hacimsel Debi (V)    : {V_req_m3_h:,.2f} m³/h\n")
+            self.results_text.insert(tk.END, f"  * Gaz Yoğunluğu (Rho)         : {rho_g:.2f} kg/m³\n")
+            self.results_text.insert(tk.END, f"  * Sıkıştırılabilirlik Faktörü : {Z_val:.4f}\n")
+            self.results_text.insert(tk.END, f"  * Özgül Isı Oranı (k=Cp/Cv)   : {k_val:.3f}\n")
+            self.results_text.insert(tk.END, f"  * Moleküler Ağırlık (MW)      : {MW_val:.2f} kg/kmol\n\n")
+
+            # --- BÖLÜM 2: AKIŞ KARAKTERİSTİĞİ VE REFERANSLAR ---
+            self.results_text.insert(tk.END, "[2] AKIŞ KARAKTERİSTİĞİ VE REFERANSLAR (API 520 Part I, Madde 5.6)\n")
+            self.results_text.insert(tk.END, f"  * Toplam İdeal Orifis Alanı   : {A_req_mm2:,.2f} mm²\n")
+            self.results_text.insert(tk.END, f"  * Kritik Basınç Oranı (Pcf)   : {pr_crit:.3f}\n")
+            self.results_text.insert(tk.END, f"  * Karşı Basınç Oranı (P_back) : % {bp_pct:.1f}\n")
+            
+            if is_choked:
+                self.results_text.insert(tk.END, "  * Akış Rejimi                 : Kritik (Choked Flow - Boğulmuş Akış)\n")
+                self.results_text.insert(tk.END, "  * PSV Boğazı (Dar Kesit) Hızı : 1.0 Mach (Sabit, ses hızını aşamaz)\n")
+                self.results_text.insert(tk.END, "  * Kullanılan Formül           : Kritik Akış Alan Denklemi (Eq. 8)\n")
+            else:
+                self.results_text.insert(tk.END, "  * Akış Rejimi                 : Alt-Kritik (Subcritical Flow)\n")
+                self.results_text.insert(tk.END, "  * Kullanılan Formül           : Subkritik Akış Alan Denklemi (Eq. 10)\n")
+            
+            if bp_pct > 10.0:
+                 self.results_text.insert(tk.END, "  >> DİKKAT: Karşı Basınç (Backpressure) %10'u aşıyor. Konvansiyonel Vana TASARLANAMAZ.\n       (Körüklü veya Pilot tip şeçiniz)\n", "WARNING")
+            
+            # --- BÖLÜM 3: MEKANİK DİZAYN ---
+            self.results_text.insert(tk.END, "\n[3] MEKANİK DİZAYN (API 520 Part II / API 521)\n")
+            self.results_text.insert(tk.END, f"  * Reaksiyon Kuvveti (Geri Tepme) : {force_N:,.0f} N ({force_kgf:,.1f} kgf) (Vana Başına)\n")
+            self.results_text.insert(tk.END, "    -> Çıkarım: API 520 Part II, Bölüm 7.3 Açık Sistem Reaksiyon Momenti.\n")
+            
+            if selected_valve:
+                self.results_text.insert(tk.END, f"  * Tahliye Çıkış Borusu (Mach)    : {mach_number:.2f} Mach\n")
+                self.results_text.insert(tk.END, "    -> Limit: API 521, Madde 5.8 (Acoustic Induced Vibration) gereği max 0.5 ~ 0.7 Mach.\n")
+                if mach_number > 0.5:
+                    self.results_text.insert(tk.END, "    >> UYARI: Eşik değer (0.5) aşıldı! Artan Hız nedeniyle Seste Yıpranma riski.\n", "WARNING")
+                else:
+                    self.results_text.insert(tk.END, "    >> DURUM: Akustik hız sınırları içerisinde. Güvenli.\n")
+            else:
+                self.results_text.insert(tk.END, "  * Tahliye Çıkış Borusu (Mach) : Hesaplanamadı (Standart Flanş Aşıldı)\n")
+
+            # --- BÖLÜM 4: VANA SEÇİMİ VE GÜVENLİK ---
+            self.results_text.insert(tk.END, "\n[4] SEÇİLEN VANA MİMARİSİ\n")
+            self.results_text.insert(tk.END, f"  * Konfigürasyon Edilen Sistem : {vana_sayisi} Adet PSV\n")
+            self.results_text.insert(tk.END, f"  * Vana Başına Düşen Debi      : {(inputs['W_req_kg_h']/vana_sayisi):,.2f} kg/h\n")
+            self.results_text.insert(tk.END, f"  * Vana Başına Gerekli Alan    : {A_req_per_valve_mm2:,.2f} mm²\n")
 
             if selected_valve:
-                self.results_text.insert(tk.END, "--- SEÇİLEN VANA ---\n")
+                self.results_text.insert(tk.END, "\n  --- (1 Adet Standart Seçim Sonucu) ---\n")
                 if "API 526" in valve_type:
-                     self.results_text.insert(tk.END, f"Orifis Harfi       : {selected_valve.letter}\n")
-                     self.results_text.insert(tk.END, f"Gerçek Vana Alanı  : {selected_valve.area_mm2:.1f} mm2\n")
-                     self.results_text.insert(tk.END, f"Önerilen Flanş Tipi: {selected_valve.size_inch} ({selected_valve.size_dn})\n")
+                     self.results_text.insert(tk.END, f"  * Orifis Tipi Grubu       : {selected_valve.letter}\n")
+                     self.results_text.insert(tk.END, f"  * Gerçek Vana Kesit Alanı : {selected_valve.area_mm2:,.1f} mm²\n")
+                     self.results_text.insert(tk.END, f"  * Giriş/Çıkış Flanşı      : {selected_valve.size_in} ({selected_valve.size_dn})\n")
                 else:
-                     self.results_text.insert(tk.END, f"Vana Çapı (İç)     : {selected_valve.dn_size}\n")
-                     self.results_text.insert(tk.END, f"Gerçek Vana Alanı  : {(selected_valve.area_m2 * 1e6):.1f} mm2\n")
+                     self.results_text.insert(tk.END, f"  * Vana Çapı (İç)          : {selected_valve.size_in}\n")
+                     self.results_text.insert(tk.END, f"  * Nominal Boyut           : {selected_valve.size_dn}\n")
+                     self.results_text.insert(tk.END, f"  * Gerçek Vana Kesit Alanı : {selected_valve.area_mm2:,.1f} mm²\n")
+                 
+                self.results_text.insert(tk.END, f"  * Toplam Fazla Kapasite   : % {(((selected_valve.area_mm2 * vana_sayisi) - A_req_mm2) / A_req_mm2 * 100):.1f}\n")
             else:
-                 self.results_text.insert(tk.END, "Uyarı: Gerekli alan standart tabloların (T Orifis vb.) üzerindedir.\nÇoklu vana kullanımı değerlendirilmelidir.\n")
+                 self.results_text.insert(tk.END, f"\n  >> HATA: Vana başına düşen {(A_req_per_valve_mm2):,.2f} mm² kesit alanı seçilebilir piyasa standartlarını (API) aşıyor.\n  Lütfen sol kısımdaki 'Vana Sayısı' ayarını makul bir seviyeye artırıp tekrar deneyin.\n", "WARNING")
                  
             self.results_text.config(state=tk.DISABLED)
 
@@ -891,7 +1191,7 @@ class Application(tk.Tk):
                 
             total_selected_area = (selected_valve.area_mm2 / 1e6) * v_count
             
-            self.update_progress_ui(80, 100, "V3 Sonuç Profili İşleniyor...")
+            self.update_progress_ui(80, 100, f"{APP_VERSION} Sonuç Profili İşleniyor...")
             sim_df = run_blowdown_simulation_v3(self.user_inputs, total_selected_area, self.update_progress_ui, self.abort_flag, silent=False)
             
             if sim_df is not None:
@@ -969,7 +1269,7 @@ class Application(tk.Tk):
         
         self.fig.tight_layout()
         self.canvas.draw()
-        self.notebook.select(self.results_frame)
+        self.notebook.select(self.graphs_tab)
 
     def save_settings(self):
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])
