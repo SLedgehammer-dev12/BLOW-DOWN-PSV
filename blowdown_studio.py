@@ -736,9 +736,23 @@ class Application(tk.Tk):
         # Graphs in Graphs Tab
         self.graphs_tab.columnconfigure(0, weight=1)
         self.graphs_tab.rowconfigure(0, weight=1)
-        self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(6, 8))
+        self.fig = plt.Figure(figsize=(7.5, 8.5))
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graphs_tab)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self._show_graph_placeholder("Blowdown")
+
+    def _show_graph_placeholder(self, mode_text):
+        self.fig.clf()
+        ax = self.fig.add_subplot(1, 1, 1)
+        label = (
+            "PSV ön boyutlandırma tamamlandığında grafikler burada görünecek."
+            if "PSV" in mode_text
+            else "Blowdown simülasyonu tamamlandığında grafikler burada görünecek."
+        )
+        ax.text(0.5, 0.5, label, ha="center", va="center", transform=ax.transAxes, fontsize=12)
+        ax.set_axis_off()
+        self.fig.tight_layout()
+        self.canvas.draw()
 
     def create_main_settings(self, frame):
         # Mode Selection
@@ -883,6 +897,7 @@ class Application(tk.Tk):
             self.btn_abort.grid()
             self.progress.grid()
             self.progress_label.grid()
+            self._show_graph_placeholder("Blowdown")
         else:
             for field in ["İç Çap", "Uzunluk", "Et Kalınlığı", "Toplam Hacim", "Hedef Blowdown Süresi", "Hedef Blowdown Basıncı"]:
                 self.entry_frames[field][0].grid_remove()
@@ -910,6 +925,7 @@ class Application(tk.Tk):
             self.btn_abort.grid_remove()
             self.progress.grid_remove()
             self.progress_label.grid_remove()
+            self._show_graph_placeholder("PSV")
 
     def handle_run_button(self):
         mode = self.mode_combo.get()
@@ -1172,6 +1188,16 @@ class Application(tk.Tk):
                 report_lines.extend(f"- {line}" for line in warning_lines)
 
             self.update_results_text("\n".join(report_lines))
+            self.plot_psv_graphs(
+                sizing,
+                inputs,
+                selected_valve,
+                valve_data,
+                vendor_selection,
+                vendor_evaluation,
+                force_N,
+                valve_count,
+            )
 
         except Exception as e:
             messagebox.showerror("Hata", f"Hesaplama hatası:\n{str(e)}")
@@ -1442,7 +1468,146 @@ class Application(tk.Tk):
         self.after(0, update)
 
     def plot_results(self, sim_df, inputs, valve):
-        self.ax1.clear(); self.ax2.clear(); self.ax3.clear()
+        return self.plot_blowdown_results(sim_df, inputs, valve)
+
+    def plot_blowdown_results(self, sim_df, inputs, valve):
+        self.fig.clf()
+        axes = self.fig.subplots(3, 2)
+        engine_name = sim_df.attrs.get("engine", NATIVE_ENGINE_NAME)
+
+        axes[0, 0].plot(sim_df['t'], sim_df['p_sys'] / 1e5, color='blue')
+        axes[0, 0].set_ylabel('Basınç (bara)')
+        axes[0, 0].set_title(f"{engine_name} - Oda Basıncı Düşümü")
+        axes[0, 0].grid(True)
+
+        axes[0, 1].plot(sim_df['t'], sim_df['mdot_kg_s'] * 3600.0, color='purple')
+        axes[0, 1].set_ylabel('Kütlesel Tahliye (kg/h)')
+        axes[0, 1].set_title('Vana Eşzamanlı Debisi')
+        axes[0, 1].grid(True)
+
+        axes[1, 0].plot(sim_df['t'], sim_df['m_sys'], color='red')
+        axes[1, 0].set_ylabel('Kalan Kütle (kg)')
+        axes[1, 0].set_title('Sistem Kütle Azalışı')
+        axes[1, 0].grid(True)
+
+        rho_safe = np.maximum(np.asarray(sim_df['rho_g'], dtype=float), 1e-12)
+        v_h = (np.asarray(sim_df['mdot_kg_s'], dtype=float) * 3600.0) / rho_safe
+        axes[1, 1].plot(sim_df['t'], v_h, color='green')
+        axes[1, 1].set_ylabel('Hacimsel Tahliye (m³/h)')
+        axes[1, 1].set_title('Volümetrik Çıkış Miktarı')
+        axes[1, 1].grid(True)
+
+        axes[2, 0].plot(sim_df['t'], sim_df['T_sys'] - 273.15, label='Gaz', color='orange')
+        axes[2, 0].plot(sim_df['t'], sim_df['T_wall'] - 273.15, label='Metal', color='black', alpha=0.7)
+        axes[2, 0].set_ylabel('Sıcaklık (°C)')
+        axes[2, 0].set_xlabel('Zaman (s)')
+        axes[2, 0].set_title('Sıcaklık Dalgalanmaları')
+        axes[2, 0].legend()
+        axes[2, 0].grid(True)
+
+        axes[2, 1].plot(sim_df['t'], sim_df['h_in'], color='brown')
+        axes[2, 1].set_ylabel('Konveksiyon (W/m²K)')
+        axes[2, 1].set_xlabel('Zaman (s)')
+        axes[2, 1].set_title('İç Isı Transfer Katsayısı')
+        axes[2, 1].grid(True)
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+        self.notebook.select(self.graphs_tab)
+
+    def plot_psv_graphs(self, sizing, inputs, selected_valve, valve_data, vendor_selection, vendor_evaluation, force_N_design, valve_count):
+        self.fig.clf()
+        axes = self.fig.subplots(2, 2)
+        required_area_mm2 = sizing.A_req_mm2 / max(valve_count, 1)
+        flow_per_valve_kg_s = (inputs['W_req_kg_h'] / 3600.0) / max(valve_count, 1)
+
+        ax1 = axes[0, 0]
+        if "API 526" in self.valve_type_combo.get():
+            letters = [o.letter for o in valve_data]
+            areas = [o.area_mm2 for o in valve_data]
+            colors_b = []
+            selected_found = False
+            for item in valve_data:
+                if not selected_found and item.area_mm2 >= required_area_mm2:
+                    colors_b.append('tomato')
+                    selected_found = True
+                elif item.area_mm2 >= required_area_mm2:
+                    colors_b.append('lightcoral')
+                else:
+                    colors_b.append('steelblue')
+            ax1.bar(letters, areas, color=colors_b, edgecolor='black', linewidth=0.5)
+            ax1.axhline(required_area_mm2, color='purple', linestyle='--', linewidth=1.5, label=f'Gerekli: {required_area_mm2:.0f} mm²')
+            ax1.set_xlabel('API 526 Orifis')
+            ax1.set_ylabel('Efektif Alan (mm²)')
+            ax1.set_title('Standart Orifis Karşılaştırması')
+            ax1.legend()
+            ax1.grid(axis='y')
+        else:
+            ax1.text(0.5, 0.5, 'API 526 grafiği bu seçim için uygulanmadı.', ha='center', va='center', transform=ax1.transAxes)
+            ax1.set_axis_off()
+
+        ax2 = axes[0, 1]
+        if vendor_evaluation and vendor_evaluation.evaluated:
+            display_items = vendor_evaluation.evaluated[: min(8, len(vendor_evaluation.evaluated))]
+            labels = [item.model.display_size for item in display_items]
+            margins = [item.certified_capacity_margin_pct for item in display_items]
+            colors_b = ['seagreen' if item.meets_required_capacity and item.meets_required_effective_area else 'darkorange' for item in display_items]
+            ax2.bar(range(len(display_items)), margins, color=colors_b)
+            ax2.axhline(0.0, color='black', linewidth=1.0)
+            ax2.set_xticks(range(len(display_items)))
+            ax2.set_xticklabels(labels, rotation=35, ha='right')
+            ax2.set_ylabel('Capacity Margin (%)')
+            ax2.set_title('Vendor Certified Capacity Screening')
+            ax2.grid(axis='y')
+        else:
+            ax2.text(0.5, 0.5, 'Vendor screening verisi bulunamadı.', ha='center', va='center', transform=ax2.transAxes)
+            ax2.set_axis_off()
+
+        ax3 = axes[1, 0]
+        if valve_data:
+            x_labels = [item.letter if hasattr(item, 'letter') else item.size_in for item in valve_data]
+            forces = [
+                calculate_reaction_force(
+                    flow_per_valve_kg_s,
+                    inputs['relieving_temperature_k'],
+                    sizing.relieving_pressure_pa,
+                    max(item.area_mm2, 1e-9) / 1e6,
+                    sizing.k_real,
+                    sizing.MW_kg_kmol,
+                ) / 1000.0
+                for item in valve_data
+            ]
+            ax3.plot(x_labels, forces, color='darkorange', marker='o', linewidth=2)
+            ax3.axhline(force_N_design / 1000.0, color='red', linestyle='--', label='Seçilen vana kuvveti')
+            ax3.set_ylabel('Reaksiyon Kuvveti (kN)')
+            ax3.set_title('Vana Boyutuna Göre Reaksiyon Kuvveti')
+            ax3.legend()
+            ax3.grid(True)
+        else:
+            ax3.text(0.5, 0.5, 'Mekanik screening verisi yok.', ha='center', va='center', transform=ax3.transAxes)
+            ax3.set_axis_off()
+
+        ax4 = axes[1, 1]
+        bp_pct_range = np.linspace(0, 50, 100)
+        kb_conv = np.where(bp_pct_range <= 10, 1.0, np.maximum(0.0, 1.0 - (bp_pct_range - 10) / 40.0))
+        kb_bbell = np.where(bp_pct_range <= 30, 1.0, np.maximum(0.0, 1.0 - (bp_pct_range - 30) / 20.0))
+        actual_bp = sizing.backpressure_pct_of_set
+        ax4.plot(bp_pct_range, kb_conv, color='steelblue', linewidth=2, label='Conventional')
+        ax4.plot(bp_pct_range, kb_bbell, color='seagreen', linewidth=2, label='Balanced Bellows')
+        ax4.axvline(actual_bp, color='red', linestyle='--', label=f'Mevcut BP: {actual_bp:.1f}%')
+        if vendor_selection is not None:
+            ax4.scatter([actual_bp], [vendor_selection.kb_used], color='black', zorder=5, label=f'Seçilen Kb: {vendor_selection.kb_used:.3f}')
+        ax4.set_xlabel('Karşı Basınç / Set (%)')
+        ax4.set_ylabel('Kb')
+        ax4.set_ylim(0.0, 1.1)
+        ax4.set_title('Backpressure Screening')
+        ax4.legend()
+        ax4.grid(True)
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+        self.notebook.select(self.graphs_tab)
+        return
         engine_name = sim_df.attrs.get("engine", NATIVE_ENGINE_NAME)
         
         # Pressure
@@ -1462,6 +1627,7 @@ class Application(tk.Tk):
         self.fig.tight_layout()
         self.canvas.draw()
         self.notebook.select(self.graphs_tab)
+        return
 
     def save_settings(self):
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON Files", "*.json")])

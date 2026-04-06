@@ -4,12 +4,20 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 import json
 from pathlib import Path
+import sys
 from typing import Iterable
 
 from psv_preliminary import PSVGasSizingResult, coefficient_c_si, coefficient_f2
 
 
-DEFAULT_VENDOR_CATALOG_PATH = Path(__file__).with_name("vendor_data") / "psv_vendor_catalog_official.json"
+def _resource_base_dir() -> Path:
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        return Path(meipass)
+    return Path(__file__).resolve().parent
+
+
+DEFAULT_VENDOR_CATALOG_PATH = _resource_base_dir() / "vendor_data" / "psv_vendor_catalog_official.json"
 
 
 @dataclass(frozen=True)

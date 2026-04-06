@@ -11,18 +11,55 @@ import pandas as pd
 P_ATM = 101325.0
 
 
+def _candidate_hyddown_paths() -> list[Path]:
+    base_dir = Path(__file__).resolve().parent
+    candidates = [
+        base_dir / "HydDown" / "src",
+        base_dir.parent / "HydDown" / "src",
+    ]
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.extend(
+            [
+                Path(meipass) / "HydDown" / "src",
+                Path(meipass),
+            ]
+        )
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path)
+        if key not in seen:
+            seen.add(key)
+            unique.append(path)
+    return unique
+
+
 def _import_hyddown():
-    hyddown_src = Path(__file__).resolve().parent.parent / "HydDown" / "src"
-    if str(hyddown_src) not in sys.path:
-        sys.path.insert(0, str(hyddown_src))
     try:
         from hyddown import HydDown
-    except ModuleNotFoundError as exc:
-        raise RuntimeError(
-            "HydDown import edilemedi. Gerekli bağımlılık eksik olabilir (ör. cerberus/scipy/tqdm)."
-        ) from exc
+        return HydDown
+    except ModuleNotFoundError:
+        pass
 
-    return HydDown
+    checked_paths: list[str] = []
+    last_exc: ModuleNotFoundError | None = None
+    for hyddown_src in _candidate_hyddown_paths():
+        checked_paths.append(str(hyddown_src))
+        if hyddown_src.exists() and str(hyddown_src) not in sys.path:
+            sys.path.insert(0, str(hyddown_src))
+        try:
+            from hyddown import HydDown
+            return HydDown
+        except ModuleNotFoundError as exc:
+            last_exc = exc
+
+    raise RuntimeError(
+        "HydDown import edilemedi. Kontrol edilen yollar: "
+        + ", ".join(checked_paths)
+        + ". Gerekli paket veya bağımlılık eksik olabilir (ör. hyddown/cerberus/scipy/tqdm)."
+    ) from last_exc
 
 
 def _build_fluid_string(composition: dict[str, float]) -> str:
