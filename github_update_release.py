@@ -7,9 +7,9 @@ import urllib.error
 
 OWNER = "SLedgehammer-dev12"
 REPO = "BLOW-DOWN-PSV"
-TAG = "v2.3"
+TAG = "v2.3.1"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.3.exe")
+EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.3.1.exe")
 
 
 def resolve_github_token():
@@ -70,7 +70,7 @@ def create_release():
     data = json.dumps({
         "tag_name": TAG,
         "name": f"Release {TAG} (Blowdown Studio)",
-        "body": "Changes in this release: 1. Fixed blowdown solver to use a stable real-gas rho-u iteration for mixtures. 2. Corrected PSV sizing to honor downstream backpressure in area calculations. 3. Fixed API 6D valve selection/runtime issues and update flow now downloads inside the application, with optional save-location selection.",
+        "body": "Changes in this release: 1. Fixed HydDown packaging/import in the bundled executable. 2. Restored the expanded blowdown and PSV plotting set that had regressed in the first v2.3 build. 3. Published the hotfix under a new version tag so in-app update detection works correctly for existing v2.3 users.",
         "draft": False,
         "prerelease": False
     }).encode('utf-8')

@@ -62,7 +62,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="Blowdown Studio_v2.3",
+    name="Blowdown Studio_v2.3.1",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -29,7 +29,7 @@ R_U = 8314.462618  # Universal gas constant (J/kmol·K)
 P_ATM = 101325     # Standard atmospheric pressure (Pa)
 T_STD = 288.7      # Standard temperature (288.7 K = 60°F)
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.3"
+APP_VERSION = "v2.3.1"
 NATIVE_ENGINE_NAME = "Yerel Çözücü"
 
 API526_Orifice = namedtuple('API526_Orifice', ['letter', 'area_in2', 'area_mm2', 'size_in', 'size_dn'])
