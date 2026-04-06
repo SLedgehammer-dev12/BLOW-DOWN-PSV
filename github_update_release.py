@@ -23,7 +23,7 @@ def resolve_github_token():
             cwd=BASE_DIR,
             text=True,
         ).strip()
-        match = re.search(r"https://([^@]+)@github\\.com/", remote_url)
+        match = re.search(r"https://([^@]+)@github\.com/", remote_url)
         if match:
             return match.group(1)
     except Exception:
