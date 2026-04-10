@@ -7,8 +7,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-
-P_ATM = 101325.0
+from constants import P_ATM
 
 
 def _candidate_hyddown_paths() -> list[Path]:
@@ -100,7 +99,7 @@ def build_hyddown_input(inputs: dict, area_m2: float) -> dict:
             "flow": "discharge",
             "type": "orifice",
             "diameter": math.sqrt(4.0 * area_m2 / math.pi),
-            "discharge_coef": inputs.get("Cd", 0.975) or 0.975,
+            "discharge_coef": inputs.get("Cd_valve", inputs.get("Cd", 0.975)) or 0.975,
             "back_pressure": inputs.get("p_downstream", P_ATM),
         },
     }

@@ -7,9 +7,9 @@ import urllib.error
 
 OWNER = "SLedgehammer-dev12"
 REPO = "BLOW-DOWN-PSV"
-TAG = "v2.3.1"
+TAG = "v2.4.0"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.3.1.exe")
+EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.4.0.exe")
 
 
 def resolve_github_token():
@@ -70,7 +70,7 @@ def create_release():
     data = json.dumps({
         "tag_name": TAG,
         "name": f"Release {TAG} (Blowdown Studio)",
-        "body": "Changes in this release: 1. Fixed HydDown packaging/import in the bundled executable. 2. Restored the expanded blowdown and PSV plotting set that had regressed in the first v2.3 build. 3. Published the hotfix under a new version tag so in-app update detection works correctly for existing v2.3 users.",
+        "body": "Changes in this release: 1. Strengthened input validation and crash handling for blowdown/API 2000 workflows. 2. Added professional PSV and blowdown CSV/PDF reporting plus toolbar/copy-friendly UI improvements. 3. Expanded regression coverage with edge-case, multicomponent, plotting, and solver-robustness tests. 4. Refined vendor exact-selection metadata and overall workflow modularization.",
         "draft": False,
         "prerelease": False
     }).encode('utf-8')

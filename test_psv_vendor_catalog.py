@@ -5,7 +5,14 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 from psv_preliminary import P_ATM, calculate_preliminary_gas_psv_area, relieving_pressure_from_set_pressure, size_gas_or_vapor_area_api520
-from psv_vendor_catalog import build_builtin_vendor_catalog, default_vendor_catalog_path, estimate_family_kb, evaluate_vendor_models_for_gas_service, load_vendor_catalog
+from psv_vendor_catalog import (
+    build_builtin_vendor_catalog,
+    default_vendor_catalog_path,
+    estimate_family_kb,
+    evaluate_vendor_models_for_gas_service,
+    load_vendor_catalog,
+    summarize_vendor_catalog,
+)
 
 
 PSI_TO_PA = 6894.76
@@ -30,6 +37,11 @@ def test_vendor_catalog_selection():
         "Spirax Sarco",
         "Goetze",
     }.issubset(manufacturers)
+
+    summary = summarize_vendor_catalog(catalog)
+    assert summary["exact_metadata_counts"]["code_stamp"] >= 15
+    assert summary["exact_metadata_counts"]["body_material"] >= 12
+    assert summary["exact_metadata_counts"]["set_pressure_range"] >= 3
 
     sample_catalog = build_builtin_vendor_catalog()
     assert any(model.is_sample_data for model in sample_catalog)
@@ -150,6 +162,44 @@ def test_vendor_catalog_selection():
     assert low_flow_eval.selected is not None
     print(f"Selected low-flow model: {low_flow_eval.selected.model.manufacturer} {low_flow_eval.selected.model.model_code}")
     assert low_flow_eval.selected.model.manufacturer in {"Goetze", "Spirax Sarco"}
+
+    low_flow_uv_eval = evaluate_vendor_models_for_gas_service(
+        sizing=low_flow,
+        required_flow_kg_h=120.0,
+        valve_count=1,
+        valve_design="Conventional",
+        Kc=1.0,
+        catalog=catalog,
+        required_code_stamp="UV",
+    )
+    assert low_flow_uv_eval.selected is not None
+    assert low_flow_uv_eval.selected.model.manufacturer == "Spirax Sarco"
+
+    higher_pressure_low_flow = size_gas_or_vapor_area_api520(
+        W_req_kg_h=120.0,
+        relieving_pressure_pa=relieving_pressure_from_set_pressure(30.0 * 1e5 + P_ATM, 10.0),
+        backpressure_pa=P_ATM,
+        relieving_temperature_k=293.15,
+        k_ideal=1.30,
+        Z=1.0,
+        MW_kg_kmol=28.97,
+        valve_design="Conventional",
+        Kd=0.975,
+        Kc=1.0,
+    )
+    higher_pressure_uv_eval = evaluate_vendor_models_for_gas_service(
+        sizing=higher_pressure_low_flow,
+        required_flow_kg_h=120.0,
+        valve_count=1,
+        valve_design="Conventional",
+        Kc=1.0,
+        catalog=catalog,
+        set_pressure_pa=30.0 * 1e5 + P_ATM,
+        required_code_stamp="UV",
+    )
+    assert higher_pressure_uv_eval.selected is not None
+    assert higher_pressure_uv_eval.selected.model.manufacturer == "Spirax Sarco"
+    assert higher_pressure_uv_eval.selected.model.series == "SV418 Series"
 
     print("TEST COMPLETED")
 

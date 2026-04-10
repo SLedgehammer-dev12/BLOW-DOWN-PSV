@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+import csv
 import json
 from pathlib import Path
 import sys
@@ -41,6 +42,14 @@ class VendorPSVModel:
     effective_area_mm2: float
     actual_area_mm2: float
     certified_kd_gas: float
+    trim_code: str = ""
+    set_pressure_min_pa: float | None = None
+    set_pressure_max_pa: float | None = None
+    code_stamp: str = ""
+    body_material: str = ""
+    trim_material: str = ""
+    inlet_rating_class: str = ""
+    outlet_rating_class: str = ""
     kb_curve_points: tuple[KbCurvePoint, ...] = ()
     source: str = ""
     notes: str = ""
@@ -198,6 +207,14 @@ def _family_records_from_payload(payload: dict, catalog_name: str) -> list[dict]
                     "effective_area_mm2": effective_area_mm2,
                     "actual_area_mm2": actual_area_mm2,
                     "certified_kd_gas": family["certified_kd_gas"],
+                    "trim_code": family.get("trim_code", ""),
+                    "set_pressure_min_pa": family.get("set_pressure_min_pa"),
+                    "set_pressure_max_pa": family.get("set_pressure_max_pa"),
+                    "code_stamp": family.get("code_stamp", ""),
+                    "body_material": family.get("body_material", ""),
+                    "trim_material": family.get("trim_material", ""),
+                    "inlet_rating_class": family.get("inlet_rating_class", ""),
+                    "outlet_rating_class": family.get("outlet_rating_class", ""),
                     "kb_curve_points": kb_curve_points,
                     "source": family.get("source", ""),
                     "notes": family.get("notes", ""),
@@ -218,6 +235,13 @@ def _records_from_payload(payload: list[dict] | dict, source_path: Path) -> tupl
     return source_path.stem, list(payload)
 
 
+def _records_from_csv(source_path: Path) -> tuple[str, list[dict]]:
+    with source_path.open("r", encoding="utf-8-sig", newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        records = [dict(row) for row in reader]
+    return source_path.stem, records
+
+
 @lru_cache(maxsize=8)
 def _load_vendor_catalog_cached(path_key: str) -> tuple[VendorPSVModel, ...]:
     if path_key == "__default__":
@@ -229,8 +253,11 @@ def _load_vendor_catalog_cached(path_key: str) -> tuple[VendorPSVModel, ...]:
         if not source_path.exists():
             raise FileNotFoundError(f"Vendor catalog not found: {source_path}")
 
-    payload = json.loads(source_path.read_text(encoding="utf-8"))
-    _, records = _records_from_payload(payload, source_path)
+    if source_path.suffix.lower() == ".csv":
+        _, records = _records_from_csv(source_path)
+    else:
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+        _, records = _records_from_payload(payload, source_path)
 
     models: list[VendorPSVModel] = []
     for record in records:
@@ -249,6 +276,14 @@ def _load_vendor_catalog_cached(path_key: str) -> tuple[VendorPSVModel, ...]:
                 effective_area_mm2=float(record["effective_area_mm2"]),
                 actual_area_mm2=float(record["actual_area_mm2"]),
                 certified_kd_gas=float(record["certified_kd_gas"]),
+                trim_code=str(record.get("trim_code", "")),
+                set_pressure_min_pa=float(record["set_pressure_min_pa"]) if record.get("set_pressure_min_pa") not in (None, "", "None") else None,
+                set_pressure_max_pa=float(record["set_pressure_max_pa"]) if record.get("set_pressure_max_pa") not in (None, "", "None") else None,
+                code_stamp=str(record.get("code_stamp", "")),
+                body_material=str(record.get("body_material", "")),
+                trim_material=str(record.get("trim_material", "")),
+                inlet_rating_class=str(record.get("inlet_rating_class", "")),
+                outlet_rating_class=str(record.get("outlet_rating_class", "")),
                 kb_curve_points=_curve_from_payload(record.get("kb_curve_points", [])),
                 source=str(record.get("source", "")),
                 notes=str(record.get("notes", "")),
@@ -262,6 +297,31 @@ def load_vendor_catalog(path: str | Path | None = None) -> list[VendorPSVModel]:
     if path is None:
         return list(_load_vendor_catalog_cached("__default__"))
     return list(_load_vendor_catalog_cached(str(Path(path))))
+
+
+def summarize_vendor_catalog(catalog: list[VendorPSVModel]) -> dict[str, object]:
+    manufacturers = sorted({model.manufacturer for model in catalog})
+    series = sorted({f"{model.manufacturer} / {model.series}" for model in catalog})
+    catalog_name = catalog[0].catalog_name if catalog else "Unknown catalog"
+    exact_metadata_counts = {
+        "trim_code": sum(1 for model in catalog if model.trim_code),
+        "set_pressure_range": sum(
+            1 for model in catalog if model.set_pressure_min_pa is not None and model.set_pressure_max_pa is not None
+        ),
+        "code_stamp": sum(1 for model in catalog if model.code_stamp),
+        "body_material": sum(1 for model in catalog if model.body_material),
+        "trim_material": sum(1 for model in catalog if model.trim_material),
+        "rating_classes": sum(
+            1 for model in catalog if model.inlet_rating_class or model.outlet_rating_class
+        ),
+    }
+    return {
+        "catalog_name": catalog_name,
+        "model_count": len(catalog),
+        "manufacturers": manufacturers,
+        "series": series,
+        "exact_metadata_counts": exact_metadata_counts,
+    }
 
 
 def interpolate_kb_curve(points: tuple[KbCurvePoint, ...], backpressure_pct_of_set: float) -> tuple[float, list[str]]:
@@ -368,6 +428,77 @@ def _certified_capacity_kg_h(
     return capacity, kb_used, kb_source, warnings
 
 
+def _matches_exact_selection_window(
+    model: VendorPSVModel,
+    *,
+    set_pressure_pa: float | None = None,
+    required_trim_code: str | None = None,
+    required_code_stamp: str | None = None,
+    required_body_material: str | None = None,
+    required_trim_material: str | None = None,
+    required_inlet_rating_class: str | None = None,
+    required_outlet_rating_class: str | None = None,
+) -> tuple[bool, list[str]]:
+    warnings: list[str] = []
+    if set_pressure_pa is not None:
+        if model.set_pressure_min_pa is not None and set_pressure_pa < model.set_pressure_min_pa:
+            return False, warnings
+        if model.set_pressure_max_pa is not None and set_pressure_pa > model.set_pressure_max_pa:
+            return False, warnings
+        if model.set_pressure_min_pa is None and model.set_pressure_max_pa is None:
+            warnings.append("Exact set-pressure range was not present in the vendor catalog record.")
+
+    if required_trim_code:
+        required_norm = required_trim_code.strip().lower()
+        model_norm = model.trim_code.strip().lower()
+        if model_norm and required_norm != model_norm:
+            return False, warnings
+        if not model_norm:
+            warnings.append("Trim-code field was not present in the vendor catalog record.")
+
+    if required_code_stamp:
+        required_norm = required_code_stamp.strip().lower()
+        stamp_norm = model.code_stamp.strip().lower()
+        if stamp_norm and required_norm not in stamp_norm:
+            return False, warnings
+        if not stamp_norm:
+            warnings.append("Code-stamp field was not present in the vendor catalog record.")
+
+    if required_body_material:
+        required_norm = required_body_material.strip().lower()
+        model_norm = model.body_material.strip().lower()
+        if model_norm and required_norm != model_norm:
+            return False, warnings
+        if not model_norm:
+            warnings.append("Body-material field was not present in the vendor catalog record.")
+
+    if required_trim_material:
+        required_norm = required_trim_material.strip().lower()
+        model_norm = model.trim_material.strip().lower()
+        if model_norm and required_norm != model_norm:
+            return False, warnings
+        if not model_norm:
+            warnings.append("Trim-material field was not present in the vendor catalog record.")
+
+    if required_inlet_rating_class:
+        required_norm = required_inlet_rating_class.strip().lower()
+        model_norm = model.inlet_rating_class.strip().lower()
+        if model_norm and required_norm != model_norm:
+            return False, warnings
+        if not model_norm:
+            warnings.append("Inlet-rating field was not present in the vendor catalog record.")
+
+    if required_outlet_rating_class:
+        required_norm = required_outlet_rating_class.strip().lower()
+        model_norm = model.outlet_rating_class.strip().lower()
+        if model_norm and required_norm != model_norm:
+            return False, warnings
+        if not model_norm:
+            warnings.append("Outlet-rating field was not present in the vendor catalog record.")
+
+    return True, warnings
+
+
 def evaluate_vendor_models_for_gas_service(
     sizing: PSVGasSizingResult,
     required_flow_kg_h: float,
@@ -375,6 +506,13 @@ def evaluate_vendor_models_for_gas_service(
     valve_design: str,
     Kc: float,
     catalog: list[VendorPSVModel] | None = None,
+    set_pressure_pa: float | None = None,
+    required_trim_code: str | None = None,
+    required_code_stamp: str | None = None,
+    required_body_material: str | None = None,
+    required_trim_material: str | None = None,
+    required_inlet_rating_class: str | None = None,
+    required_outlet_rating_class: str | None = None,
 ) -> VendorCatalogEvaluation:
     models = catalog if catalog is not None else load_vendor_catalog()
     design_key = valve_design.strip().lower()
@@ -386,7 +524,20 @@ def evaluate_vendor_models_for_gas_service(
     evaluated: list[VendorPSVSelection] = []
 
     for model in candidate_models:
+        matches_window, exact_warnings = _matches_exact_selection_window(
+            model,
+            set_pressure_pa=set_pressure_pa,
+            required_trim_code=required_trim_code,
+            required_code_stamp=required_code_stamp,
+            required_body_material=required_body_material,
+            required_trim_material=required_trim_material,
+            required_inlet_rating_class=required_inlet_rating_class,
+            required_outlet_rating_class=required_outlet_rating_class,
+        )
+        if not matches_window:
+            continue
         capacity_kg_h, kb_used, kb_source, warnings = _certified_capacity_kg_h(model, sizing, Kc)
+        warnings.extend(exact_warnings)
         meets_effective_area = model.effective_area_mm2 >= required_effective_area_per_valve_mm2
         meets_capacity = capacity_kg_h >= required_flow_per_valve_kg_h
 
