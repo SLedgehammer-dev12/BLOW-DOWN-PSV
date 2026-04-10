@@ -91,7 +91,50 @@ def test_execute_psv_workflow_liquid_screening():
     assert "Kw kullanılan" in result.report_bundle.text
 
 
+def test_execute_psv_workflow_uses_valve_count_for_per_valve_selection():
+    converter = studio.UnitConverter()
+    composition = {"Methane": 1.0}
+    inputs = {
+        "composition": composition,
+        "psv_service_type": "Gas/Vapor",
+        "set_pressure_pa": converter.convert_pressure(100.0, "barg"),
+        "mawp_pa": converter.convert_pressure(100.0, "barg"),
+        "overpressure_pct": 10.0,
+        "relieving_temperature_k": converter.convert_temperature(25.0, "C"),
+        "p_total_backpressure_pa": converter.convert_pressure(5.0, "barg"),
+        "Kd_api520": 0.975,
+        "Kb": None,
+        "Kw": None,
+        "Kc": 1.0,
+        "prv_design": "Balanced Bellows",
+        "valve_count": 3,
+        "valve_type": "API 526 (PSV/PRV)",
+    }
+
+    result = execute_psv_workflow(
+        inputs=inputs,
+        service_type="Gas/Vapor",
+        valve_type="API 526 (PSV/PRV)",
+        valve_count=3,
+        rupture_disk="No",
+        flow_unit="kg/h",
+        flow_value=10000.0,
+        normalized_composition=composition,
+        active_vendor_catalog=load_vendor_catalog(),
+        load_api526_data=studio.load_api526_data,
+        load_api6d_data=studio.load_api6d_data,
+        converter=converter,
+    )
+
+    assert result.valve_count == 3
+    assert result.selected_valve is not None
+    assert result.selected_valve.area_mm2 >= (result.sizing.A_req_mm2 / 3.0)
+    assert "Vana say" in result.report_bundle.text
+    assert ": 3" in result.report_bundle.text
+
+
 if __name__ == "__main__":
     test_execute_psv_workflow_gas_vendor_screening()
     test_execute_psv_workflow_liquid_screening()
+    test_execute_psv_workflow_uses_valve_count_for_per_valve_selection()
     print("TEST COMPLETED")

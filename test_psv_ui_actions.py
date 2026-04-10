@@ -25,6 +25,7 @@ from ui_mode_logic import (
     FIELD_REQUIRED_TRIM_MATERIAL,
     FIELD_START_PRESSURE,
     FIELD_START_TEMPERATURE,
+    FIELD_VALVE_COUNT,
 )
 
 
@@ -96,6 +97,8 @@ def test_collect_psv_ui_payload_gas():
         app.entries[FIELD_OVERPRESSURE].insert(0, "10")
         app.entries[FIELD_START_TEMPERATURE].insert(0, "25")
         app.entries[FIELD_BACKPRESSURE].insert(0, "5")
+        app.entries[FIELD_VALVE_COUNT].delete(0, tk.END)
+        app.entries[FIELD_VALVE_COUNT].insert(0, "3")
 
         app.entries[FIELD_REQUIRED_TRIM_CODE].delete(0, tk.END)
         app.entries[FIELD_REQUIRED_TRIM_CODE].insert(0, "TRIM-J")
@@ -113,7 +116,7 @@ def test_collect_psv_ui_payload_gas():
         payload = collect_psv_ui_payload(app, converter=UnitConverter())
 
         assert payload["service_type"] == "Gas/Vapor"
-        assert payload["valve_count"] == 1
+        assert payload["valve_count"] == 3
         assert abs(sum(payload["normalized_composition"].values()) - 1.0) < 1e-9
         assert payload["inputs"]["Kd_api520"] == 0.975
         assert payload["inputs"]["required_trim_code"] == "TRIM-J"

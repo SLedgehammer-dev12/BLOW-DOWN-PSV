@@ -38,7 +38,7 @@ if HYDDOWN_SRC.exists():
 if VENDOR_DATA_DIR.exists():
     for path in VENDOR_DATA_DIR.rglob("*"):
         if path.is_file():
-            datas.append((str(path), str(path.relative_to(PROJECT_DIR))))
+            datas.append((str(path), str(path.parent.relative_to(PROJECT_DIR))))
 
 
 a = Analysis(

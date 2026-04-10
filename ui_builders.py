@@ -42,6 +42,10 @@ from ui_mode_logic import (
     FIELD_VALVE_COUNT,
 )
 
+LEFT_PANE_INITIAL_RATIO = 0.50
+MAIN_SETTINGS_WEIGHT = 7
+GAS_SETTINGS_WEIGHT = 3
+
 
 def _bind_copyable_readonly_text(widget) -> None:
     widget.copyable_readonly = True
@@ -539,8 +543,8 @@ def build_application_shell_ui(app) -> None:
 
     app.left_pane = ttk.Frame(app.paned)
     app.right_pane = ttk.Frame(app.paned)
-    app.paned.add(app.left_pane, weight=6)
-    app.paned.add(app.right_pane, weight=4)
+    app.paned.add(app.left_pane, weight=1)
+    app.paned.add(app.right_pane, weight=1)
 
     app.left_pane.columnconfigure(0, weight=1)
     app.left_pane.rowconfigure(0, weight=1)
@@ -571,7 +575,7 @@ def build_application_shell_ui(app) -> None:
     def _set_initial_sash():
         try:
             total_width = max(app.winfo_width(), 1024)
-            app.paned.sashpos(0, int(total_width * 0.58))
+            app.paned.sashpos(0, int(total_width * LEFT_PANE_INITIAL_RATIO))
         except Exception:
             pass
 
@@ -600,8 +604,9 @@ def build_left_pane_ui(app, parent) -> None:
 
     content_frame = ttk.Frame(parent)
     content_frame.pack(fill="both", expand=True, padx=5, pady=5)
-    content_frame.columnconfigure(0, weight=3)
-    content_frame.columnconfigure(1, weight=2)
+    content_frame.columnconfigure(0, weight=MAIN_SETTINGS_WEIGHT)
+    content_frame.columnconfigure(1, weight=GAS_SETTINGS_WEIGHT)
+    app.left_content_frame = content_frame
 
     app.main_settings_frame = ttk.Frame(content_frame)
     app.main_settings_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))

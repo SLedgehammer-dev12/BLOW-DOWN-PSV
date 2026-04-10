@@ -95,6 +95,7 @@ def build_psv_service_field_config(service_type: str, current_kd_value: str) -> 
     )
 
 
+
 def build_mode_ui_state(*, mode: str, fire_case_enabled: bool, engine_name: str, app_version: str) -> ModeUIState:
     vendor_filter_fields = (
         FIELD_REQUIRED_TRIM_CODE,
@@ -115,6 +116,7 @@ def build_mode_ui_state(*, mode: str, fire_case_enabled: bool, engine_name: str,
             FIELD_START_TEMPERATURE,
             FIELD_TARGET_TIME,
             FIELD_TARGET_PRESSURE,
+            FIELD_VALVE_COUNT,
             FIELD_VALVE_CD,
             FIELD_BACKPRESSURE,
             FIELD_BACKPRESSURE_KB,
@@ -170,6 +172,7 @@ def build_mode_ui_state(*, mode: str, fire_case_enabled: bool, engine_name: str,
             FIELD_START_TEMPERATURE,
             FIELD_MAWP,
             FIELD_OVERPRESSURE,
+            FIELD_VALVE_COUNT,
             FIELD_PSV_KD,
             FIELD_BACKPRESSURE,
             FIELD_BACKPRESSURE_KB,

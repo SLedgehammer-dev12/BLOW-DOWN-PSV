@@ -2,7 +2,7 @@
 
 ## Mevcut durum
 
-0. Aktif hotfix surumu `v2.3.1`.
+0. Aktif surum `v2.4.0`.
 1. Aktif uygulama adi `Blowdown Studio` olarak standardize edildi.
 2. Aktif giris dosyasi `blowdown_studio.py` oldu.
 3. `Blow Down PSV V3.py` yalniz geriye donuk uyumluluk baslaticisi olarak birakildi.
@@ -21,7 +21,13 @@
 - Resmi vendor screening veri seti: `vendor_data/psv_vendor_catalog_official.json`
 - Vendor kaynak notlari: `vendor_data/README.md`
 - HydDown adaptoru: `hyddown_adapter.py`
-- Paketleme: `blowdown_studio_v2.3.1.spec`
+- Paketleme: `blowdown_studio_v2.4.0.spec`
+
+## v2.4.0
+
+- Default ana arayuz genislikleri `Temel Girdiler` `%35`, `Gaz Kompozisyonu` `%15` ve `Analiz Raporu` `%50` olacak sekilde guncellendi.
+- Blowdown ve PSV modlarinda `Vana Sayisi` alani yeniden gorunur hale getirildi.
+- PSV sizing akisinda kullanicinin sectigi vana sayisi uzerinden vana basina gerekli alan hesaplanip uygun vana boyutu seciliyor.
 
 ## Testler
 

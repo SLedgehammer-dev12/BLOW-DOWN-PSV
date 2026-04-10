@@ -3,11 +3,16 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
+import pytest
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 from api2000_ui_actions import API2000_FIELD_LATITUDE, API2000_FIELD_TANK_VOLUME
 from ui_builders import (
+    GAS_SETTINGS_WEIGHT,
+    LEFT_PANE_INITIAL_RATIO,
+    MAIN_SETTINGS_WEIGHT,
     build_application_shell_ui,
     build_api2000_pane_ui,
     build_gas_settings_ui,
@@ -176,7 +181,10 @@ def test_build_right_pane_ui_smoke():
 
 
 def test_build_menu_bar_smoke():
-    app = MenuApp()
+    try:
+        app = MenuApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk ortamı hazır değil: {exc}")
     try:
         build_menu_bar(app)
         assert str(app.cget("menu"))
@@ -192,6 +200,9 @@ def test_build_application_shell_ui_smoke():
         assert hasattr(app, "main_tab")
         assert hasattr(app, "left_container")
         assert hasattr(app, "log_text")
+        assert int(app.paned.pane(app.left_pane)["weight"]) == 1
+        assert int(app.paned.pane(app.right_pane)["weight"]) == 1
+        assert LEFT_PANE_INITIAL_RATIO == 0.50
     finally:
         app.destroy()
 
@@ -204,6 +215,9 @@ def test_build_left_pane_ui_smoke():
         parent.pack()
         app = DummyApp()
         build_left_pane_ui(app, parent)
+        assert hasattr(app, "left_content_frame")
+        assert int(app.left_content_frame.grid_columnconfigure(0)["weight"]) == MAIN_SETTINGS_WEIGHT
+        assert int(app.left_content_frame.grid_columnconfigure(1)["weight"]) == GAS_SETTINGS_WEIGHT
         assert app.valve_type_combo.get() == "API 6D (Küresel/Blowdown)"
         assert hasattr(app, "main_settings_frame")
         assert hasattr(app, "gas_settings_frame")

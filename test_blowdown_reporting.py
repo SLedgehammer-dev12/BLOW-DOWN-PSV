@@ -10,7 +10,7 @@ def test_blowdown_report_exports():
         text="Satır 1\nSatır 2\n",
         summary_rows=[("Sonuç", "PASS"), ("Gerçekleşen Süre (s)", "10.0")],
         generated_on="10.04.2026",
-        software_version="Blowdown Studio v2.3.1",
+        software_version="Blowdown Studio v2.4.0",
     )
 
     with TemporaryDirectory() as tmp_dir:
