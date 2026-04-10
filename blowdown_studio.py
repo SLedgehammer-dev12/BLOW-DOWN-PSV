@@ -84,7 +84,7 @@ from segmented_pipeline import (
 
 # Constants and Data Structures
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.0"
+APP_VERSION = "v2.4.1"
 TWO_PHASE_ENGINE_NAME = "Two-Phase Screening"
 
 API526_Orifice = namedtuple('API526_Orifice', ['letter', 'area_in2', 'area_mm2', 'size_in', 'size_dn'])

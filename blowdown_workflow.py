@@ -76,7 +76,7 @@ def build_blowdown_report(
     total_selected_area_m2,
 ) -> dict[str, Any]:
     generated_on = datetime.now().strftime("%d.%m.%Y")
-    software_version = "Blowdown Studio v2.4.0"
+    software_version = "Blowdown Studio v2.4.1"
     screening_inputs = dict(inputs)
     blowdown_warnings = list(sim_df.attrs.get("warnings", []))
     blowdown_warnings.extend(screening_inputs.get("fire_case_warnings", []))

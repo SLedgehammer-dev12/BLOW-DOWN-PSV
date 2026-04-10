@@ -65,7 +65,7 @@ def build_psv_report_bundle(
     final_selection_readiness=None,
 ) -> PSVReportBundle:
     generated_on = datetime.now().strftime("%d.%m.%Y")
-    software_version = "Blowdown Studio v2.4.0"
+    software_version = "Blowdown Studio v2.4.1"
     report_title = f"PSV ÖN BOYUTLANDIRMA VE SCREENING RAPORU - {service_type}"
     composition_text = (
         " | ".join(f"{name}={fraction * 100.0:.3f}%" for name, fraction in sorted(inputs.get("composition", {}).items()))

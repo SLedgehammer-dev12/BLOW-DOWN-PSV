@@ -7,9 +7,9 @@ import urllib.error
 
 OWNER = "SLedgehammer-dev12"
 REPO = "BLOW-DOWN-PSV"
-TAG = "v2.4.0"
+TAG = "v2.4.1"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.4.0.exe")
+EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.4.1.exe")
 
 
 def resolve_github_token():

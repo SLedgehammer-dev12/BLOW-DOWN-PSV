@@ -2,7 +2,7 @@
 
 ## Mevcut durum
 
-0. Aktif surum `v2.4.0`.
+0. Aktif surum `v2.4.1`.
 1. Aktif uygulama adi `Blowdown Studio` olarak standardize edildi.
 2. Aktif giris dosyasi `blowdown_studio.py` oldu.
 3. `Blow Down PSV V3.py` yalniz geriye donuk uyumluluk baslaticisi olarak birakildi.
@@ -21,7 +21,12 @@
 - Resmi vendor screening veri seti: `vendor_data/psv_vendor_catalog_official.json`
 - Vendor kaynak notlari: `vendor_data/README.md`
 - HydDown adaptoru: `hyddown_adapter.py`
-- Paketleme: `blowdown_studio_v2.4.0.spec`
+- Paketleme: `blowdown_studio_v2.4.1.spec`
+
+## v2.4.1
+
+- Paketleme sadeleştirildi; gereksiz test/notebook/backend yükleri dışarı alındı.
+- Windows version metadata eklendi ve release build yeniden üretildi.
 
 ## v2.4.0
 
