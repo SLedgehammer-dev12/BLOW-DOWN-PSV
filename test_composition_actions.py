@@ -2,15 +2,25 @@ import os
 import sys
 import tkinter as tk
 
+import pytest
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 from composition_actions import add_selected_gas, clear_composition, filter_gas_listbox, render_composition_text
 
 
-def test_filter_gas_listbox_smoke():
-    root = tk.Tk()
+def _create_root_or_skip():
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk ortami hazir degil: {exc}")
     root.withdraw()
+    return root
+
+
+def test_filter_gas_listbox_smoke():
+    root = _create_root_or_skip()
     try:
         listbox = tk.Listbox(root)
         listbox.pack()
@@ -23,8 +33,7 @@ def test_filter_gas_listbox_smoke():
 
 
 def test_add_selected_gas_and_clear():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         composition = {}
         listbox = tk.Listbox(root)
@@ -61,8 +70,7 @@ def test_add_selected_gas_and_clear():
 
 
 def test_render_composition_text_warning():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         text = tk.Text(root)
         text.pack()
@@ -75,8 +83,7 @@ def test_render_composition_text_warning():
 
 
 def test_add_selected_gas_overwrite_warning():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         composition = {"Methane": 80.0}
         listbox = tk.Listbox(root)

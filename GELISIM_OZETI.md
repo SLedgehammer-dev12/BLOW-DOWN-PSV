@@ -2,7 +2,7 @@
 
 ## Mevcut durum
 
-0. Aktif surum `v2.4.1`.
+0. Aktif surum `v2.4.2`.
 1. Aktif uygulama adi `Blowdown Studio` olarak standardize edildi.
 2. Aktif giris dosyasi `blowdown_studio.py` oldu.
 3. `Blow Down PSV V3.py` yalniz geriye donuk uyumluluk baslaticisi olarak birakildi.
@@ -21,7 +21,15 @@
 - Resmi vendor screening veri seti: `vendor_data/psv_vendor_catalog_official.json`
 - Vendor kaynak notlari: `vendor_data/README.md`
 - HydDown adaptoru: `hyddown_adapter.py`
-- Paketleme: `blowdown_studio_v2.4.1.spec`
+- Paketleme: `blowdown_studio_v2.4.2.spec`
+
+## v2.4.2
+
+- Steam ve Liquid servisleri icin opsiyonel `psvpy` cross-check eklendi; native API 520 sizing sonucu ana hesap olarak korundu.
+- PSV raporuna `psvpy` kaynak, gerekli alan ve native sizing farki ayri bolum olarak eklendi.
+- `Hakkinda / Guncelleme Tarihcesi` penceresi yardim menusune eklendi.
+- Ayarlara `psvpy cross-check` tercihi kaydedilir hale getirildi.
+- Tk/Tcl eksikligi olan ortamlarda UI testleri temiz skip verecek sekilde guclendirildi.
 
 ## v2.4.1
 

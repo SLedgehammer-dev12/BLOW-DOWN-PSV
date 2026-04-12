@@ -13,6 +13,7 @@ from acoustic_screening import (
     check_acoustic_fatigue,
 )
 from api521_discharge_piping import calculate_discharge_piping_loss
+from app_metadata import SOFTWARE_VERSION
 from blowdown_reporting import BlowdownReportBundle
 from constants import P_ATM
 from hyddown_adapter import find_hyddown_blowdown_area, run_hyddown_blowdown_simulation
@@ -76,7 +77,7 @@ def build_blowdown_report(
     total_selected_area_m2,
 ) -> dict[str, Any]:
     generated_on = datetime.now().strftime("%d.%m.%Y")
-    software_version = "Blowdown Studio v2.4.1"
+    software_version = SOFTWARE_VERSION
     screening_inputs = dict(inputs)
     blowdown_warnings = list(sim_df.attrs.get("warnings", []))
     blowdown_warnings.extend(screening_inputs.get("fire_case_warnings", []))

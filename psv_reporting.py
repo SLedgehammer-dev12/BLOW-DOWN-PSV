@@ -13,6 +13,8 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from app_metadata import SOFTWARE_VERSION
+
 
 @dataclass
 class PSVReportBundle:
@@ -63,9 +65,10 @@ def build_psv_report_bundle(
     reaction_discharge_area_m2: float,
     section_xiii_validation=None,
     final_selection_readiness=None,
+    psvpy_crosscheck=None,
 ) -> PSVReportBundle:
     generated_on = datetime.now().strftime("%d.%m.%Y")
-    software_version = "Blowdown Studio v2.4.1"
+    software_version = SOFTWARE_VERSION
     report_title = f"PSV ÖN BOYUTLANDIRMA VE SCREENING RAPORU - {service_type}"
     composition_text = (
         " | ".join(f"{name}={fraction * 100.0:.3f}%" for name, fraction in sorted(inputs.get("composition", {}).items()))
@@ -155,6 +158,17 @@ def build_psv_report_bundle(
                 f"Viskozite kontrollü alan      : {sizing.selected_area_mm2:,.2f} mm2",
             ]
         )
+    if psvpy_crosscheck is not None:
+        report_lines.extend(
+            [
+                "",
+                "[3A] psvpy Cross-Check",
+                f"Kaynak                        : {psvpy_crosscheck.provider}",
+                f"psvpy gerekli alan            : {psvpy_crosscheck.area_mm2:,.2f} mm2",
+                f"Native'e gore fark            : %{psvpy_crosscheck.delta_pct:+.1f}",
+            ]
+        )
+        report_lines.extend(f"- {note}" for note in psvpy_crosscheck.notes)
 
     report_lines.extend(
         [
@@ -290,6 +304,16 @@ def build_psv_report_bundle(
         summary_rows.append(("Reaction Force (N/valve)", f"{force_n:,.0f}"))
     if mach_number is not None:
         summary_rows.append(("Exit Mach Screening", f"{mach_number:.3f}"))
+    if psvpy_crosscheck is not None:
+        summary_rows.extend(
+            [
+                ("psvpy Cross-Check", psvpy_crosscheck.provider),
+                ("psvpy Area (mm2)", f"{psvpy_crosscheck.area_mm2:,.2f}"),
+                ("psvpy Delta vs Native (%)", f"{psvpy_crosscheck.delta_pct:+.1f}"),
+            ]
+        )
+        for idx, note in enumerate(psvpy_crosscheck.notes, start=1):
+            summary_rows.append((f"psvpy Note {idx}", note))
     if selected_valve:
         summary_rows.append(("Seçilen Vana", f"{selected_valve.size_in} ({selected_valve.size_dn})"))
         summary_rows.append(("Seçilen Vana Alanı (mm2)", f"{selected_valve.area_mm2:,.1f}"))

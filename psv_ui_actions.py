@@ -102,6 +102,7 @@ def collect_psv_ui_payload(app, *, converter):
         "Kw": get_val(FIELD_BACKPRESSURE_KB) if service_type == "Liquid" else None,
         "Kc": 0.9 if app.rupture_disk_combo.get() == "Yes" else 1.0,
         "prv_design": app.prv_design_combo.get(),
+        "psvpy_crosscheck": bool(app.psvpy_crosscheck_var.get()) if hasattr(app, "psvpy_crosscheck_var") else False,
         "valve_count": valve_count,
         "valve_type": valve_type,
         "required_trim_code": get_text(FIELD_REQUIRED_TRIM_CODE),

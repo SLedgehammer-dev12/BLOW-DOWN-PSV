@@ -20,6 +20,7 @@ from ui_file_actions import (
     show_psv_export_result,
     write_settings_payload,
 )
+from app_metadata import APP_NAME, APP_VERSION, build_about_text
 from ui_builders import (
     build_application_shell_ui,
     build_api2000_pane_ui,
@@ -83,8 +84,6 @@ from segmented_pipeline import (
 )
 
 # Constants and Data Structures
-APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.1"
 TWO_PHASE_ENGINE_NAME = "Two-Phase Screening"
 
 API526_Orifice = namedtuple('API526_Orifice', ['letter', 'area_in2', 'area_mm2', 'size_in', 'size_dn'])
@@ -709,6 +708,15 @@ class Application(tk.Tk):
             two_phase_engine_name=TWO_PHASE_ENGINE_NAME,
         )
         show_methodology_dialog(self, content)
+
+    def show_about(self):
+        content = build_about_text(app_name=APP_NAME, app_version=APP_VERSION)
+        show_methodology_dialog(
+            self,
+            content,
+            title=f"{APP_NAME} Hakkinda",
+            geometry="760x640",
+        )
 
 if __name__ == "__main__":
     Application().mainloop()

@@ -13,6 +13,7 @@ from psv_preliminary import (
     calculate_preliminary_liquid_psv_area,
     calculate_preliminary_steam_psv_area,
 )
+from psvpy_adapter import PSVPyCrosscheckResult, build_psvpy_crosscheck
 from psv_reporting import build_psv_report_bundle, PSVReportBundle
 from psv_vendor_catalog import estimate_family_kb, evaluate_vendor_models_for_gas_service
 from vendor_final_selection import evaluate_vendor_final_selection_readiness
@@ -30,6 +31,7 @@ class PSVWorkflowResult:
     final_selection_readiness: object | None
     force_n: float | None
     valve_count: int
+    psvpy_crosscheck: PSVPyCrosscheckResult | None
 
 
 def execute_psv_workflow(
@@ -95,6 +97,19 @@ def execute_psv_workflow(
     mass_flow_kg_h = inputs.get("W_req_kg_h", getattr(sizing, "W_req_kg_h", 0.0))
     rho_g = getattr(sizing, "rho_relieving_kg_m3", 0.0) or 0.0
     volumetric_flow_m3_h = (mass_flow_kg_h / rho_g) if rho_g > 0.0 and mass_flow_kg_h else None
+    psvpy_crosscheck = None
+    if inputs.get("psvpy_crosscheck"):
+        if service_type in {"Steam", "Liquid"}:
+            try:
+                psvpy_crosscheck = build_psvpy_crosscheck(
+                    inputs=inputs,
+                    service_type=service_type,
+                    native_area_mm2=required_area_mm2,
+                )
+            except Exception as exc:
+                preliminary_extra_warnings.append(f"psvpy cross-check hesaplanamadi: {exc}")
+        else:
+            preliminary_extra_warnings.append("psvpy cross-check bu surumde yalniz Steam/Liquid servis icin aktiftir.")
 
     required_area_per_valve_m2 = required_area_m2 / valve_count
     required_area_per_valve_mm2 = required_area_mm2 / valve_count
@@ -161,6 +176,10 @@ def execute_psv_workflow(
 
     warning_lines = list(sizing.warnings)
     warning_lines.extend(preliminary_extra_warnings)
+    if psvpy_crosscheck is not None and abs(psvpy_crosscheck.delta_pct) >= 10.0:
+        warning_lines.append(
+            f"psvpy cross-check alani native sizing sonucundan %{psvpy_crosscheck.delta_pct:+.1f} fark gosterdi."
+        )
     if service_type == "Gas/Vapor" and sizing.backpressure_pct_of_set > 10.0 and inputs["prv_design"] == "Conventional":
         warning_lines.append(
             "Conventional PRV icin total backpressure, set pressure'in %10 screening seviyesini asiyor. API 520-1 ve uretici limiti ayrica dogrulanmalidir."
@@ -231,6 +250,7 @@ def execute_psv_workflow(
         reaction_discharge_area_m2=discharge_area_m2,
         section_xiii_validation=section_xiii_validation,
         final_selection_readiness=final_selection_readiness,
+        psvpy_crosscheck=psvpy_crosscheck,
     )
 
     return PSVWorkflowResult(
@@ -244,4 +264,5 @@ def execute_psv_workflow(
         final_selection_readiness=final_selection_readiness,
         force_n=force_n,
         valve_count=valve_count,
+        psvpy_crosscheck=psvpy_crosscheck,
     )

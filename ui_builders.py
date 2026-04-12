@@ -294,6 +294,13 @@ def build_main_settings_ui(
     app.rupture_disk_combo = ttk.Combobox(app.psv_options_frame, values=["No", "Yes"], state="readonly")
     app.rupture_disk_combo.grid(row=1, column=3, padx=6, pady=5, sticky="ew")
     app.rupture_disk_combo.set("No")
+    app.psvpy_crosscheck_var = tk.BooleanVar(value=False)
+    app.psvpy_crosscheck_check = ttk.Checkbutton(
+        app.psv_options_frame,
+        text="psvpy cross-check ekle (Steam/Liquid)",
+        variable=app.psvpy_crosscheck_var,
+    )
+    app.psvpy_crosscheck_check.grid(row=2, column=0, columnspan=4, padx=6, pady=(2, 4), sticky="w")
 
     app.psv_filter_help_label = ttk.Label(
         app.psv_options_frame,
@@ -302,10 +309,10 @@ def build_main_settings_ui(
         wraplength=740,
         foreground="#4f5d6b",
     )
-    app.psv_filter_help_label.grid(row=2, column=0, columnspan=4, padx=6, pady=(2, 4), sticky="w")
+    app.psv_filter_help_label.grid(row=3, column=0, columnspan=4, padx=6, pady=(2, 4), sticky="w")
 
     app.psv_vendor_filters_frame = ttk.LabelFrame(app.psv_options_frame, text="Opsiyonel Exact Vendor Filtreleri")
-    app.psv_vendor_filters_frame.grid(row=3, column=0, columnspan=4, padx=6, pady=6, sticky="ew")
+    app.psv_vendor_filters_frame.grid(row=4, column=0, columnspan=4, padx=6, pady=6, sticky="ew")
     app.psv_vendor_filters_frame.columnconfigure(1, weight=1)
     app.psv_vendor_filters_frame.columnconfigure(3, weight=1)
 
@@ -446,6 +453,7 @@ def build_menu_bar(app) -> None:
     menubar.add_cascade(label="Vendor", menu=vendormenu)
 
     helpmenu = tk.Menu(menubar, tearoff=0)
+    helpmenu.add_command(label="Hakkinda / Guncelleme Tarihcesi", command=app.show_about)
     helpmenu.add_command(label="Metodoloji (API 520/521/2000)", command=app.show_methodology)
     helpmenu.add_command(label="Güncellemeleri Kontrol Et...", command=lambda: app.check_for_updates(manual=True))
     menubar.add_cascade(label="Yardım", menu=helpmenu)

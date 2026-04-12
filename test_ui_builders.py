@@ -92,13 +92,31 @@ class MenuApp(tk.Tk):
     def show_methodology(self):
         return None
 
+    def show_about(self):
+        return None
+
     def check_for_updates(self, manual=False):
         return None
 
 
-def test_build_main_settings_ui_smoke():
-    root = tk.Tk()
+def _create_root_or_skip():
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk ortami hazir degil: {exc}")
     root.withdraw()
+    return root
+
+
+def _create_menu_app_or_skip():
+    try:
+        return MenuApp()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk ortami hazir degil: {exc}")
+
+
+def test_build_main_settings_ui_smoke():
+    root = _create_root_or_skip()
     try:
         frame = ttk.Frame(root)
         frame.pack()
@@ -121,14 +139,15 @@ def test_build_main_settings_ui_smoke():
         assert FIELD_REQUIRED_CODE_STAMP not in app.unit_combos
         assert hasattr(app, "mode_help_label")
         assert hasattr(app, "psv_vendor_filters_frame")
+        assert hasattr(app, "psvpy_crosscheck_var")
+        assert app.psvpy_crosscheck_var.get() is False
         assert getattr(app, "mode_change_calls", 0) >= 1
     finally:
         root.destroy()
 
 
 def test_build_api2000_pane_ui_smoke():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         parent = ttk.Frame(root)
         parent.pack()
@@ -143,8 +162,7 @@ def test_build_api2000_pane_ui_smoke():
 
 
 def test_build_gas_settings_ui_smoke():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         frame = ttk.Frame(root)
         frame.pack()
@@ -161,8 +179,7 @@ def test_build_gas_settings_ui_smoke():
 
 
 def test_build_right_pane_ui_smoke():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         parent = ttk.Frame(root)
         parent.pack()
@@ -182,7 +199,7 @@ def test_build_right_pane_ui_smoke():
 
 def test_build_menu_bar_smoke():
     try:
-        app = MenuApp()
+        app = _create_menu_app_or_skip()
     except tk.TclError as exc:
         pytest.skip(f"Tk ortamı hazır değil: {exc}")
     try:
@@ -193,7 +210,7 @@ def test_build_menu_bar_smoke():
 
 
 def test_build_application_shell_ui_smoke():
-    app = MenuApp()
+    app = _create_menu_app_or_skip()
     try:
         build_application_shell_ui(app)
         assert hasattr(app, "notebook")
@@ -208,8 +225,7 @@ def test_build_application_shell_ui_smoke():
 
 
 def test_build_left_pane_ui_smoke():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         parent = ttk.Frame(root)
         parent.pack()
@@ -228,8 +244,7 @@ def test_build_left_pane_ui_smoke():
 
 
 def test_build_log_tab_ui_smoke():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = DummyApp()
         app.log_tab = ttk.Frame(root)

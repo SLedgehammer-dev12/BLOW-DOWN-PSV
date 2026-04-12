@@ -52,6 +52,7 @@ class FakeApp:
         self.psv_service_combo = FakeField("Gas/Vapor")
         self.prv_design_combo = FakeField("Conventional")
         self.rupture_disk_combo = FakeField("No")
+        self.psvpy_crosscheck_var = FakeVar(False)
         self.fire_case_var = FakeVar(False)
         self.fire_case_scenario_combo = FakeField("Adequate drainage + firefighting")
         self.fire_case_factor_entry = FakeField("1.0")
@@ -79,6 +80,7 @@ class FakeApp:
 def test_build_and_apply_settings_payload_roundtrip():
     app = FakeApp()
     app.vendor_catalog_path = "catalog.json"
+    app.psvpy_crosscheck_var.set(True)
     payload = build_settings_payload(app)
 
     clone = FakeApp()
@@ -88,6 +90,7 @@ def test_build_and_apply_settings_payload_roundtrip():
     assert clone.entries["Valve Discharge Coeff (Cd)"].get() == "0.975"
     assert clone.entries["PSV Certified Kd"].get() == "0.975"
     assert clone.composition == {"Methane": 100.0}
+    assert clone.psvpy_crosscheck_var.get() is True
     assert clone.update_calls == 1
     assert clone.mode_change_calls == 1
 

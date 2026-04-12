@@ -16,6 +16,7 @@ def build_settings_payload(app) -> dict:
         "psv_service": app.psv_service_combo.get(),
         "prv_design": app.prv_design_combo.get(),
         "rupture_disk": app.rupture_disk_combo.get(),
+        "psvpy_crosscheck_enabled": app.psvpy_crosscheck_var.get() if hasattr(app, "psvpy_crosscheck_var") else False,
         "fire_case_enabled": app.fire_case_var.get(),
         "fire_case_scenario": app.fire_case_scenario_combo.get(),
         "fire_case_factor": app.fire_case_factor_entry.get(),
@@ -53,6 +54,8 @@ def apply_settings_payload(app, data: dict, *, default_engine_name: str) -> None
     app.psv_service_combo.set(data.get("psv_service", "Gas/Vapor"))
     app.prv_design_combo.set(data.get("prv_design", "Conventional"))
     app.rupture_disk_combo.set(data.get("rupture_disk", "No"))
+    if hasattr(app, "psvpy_crosscheck_var"):
+        app.psvpy_crosscheck_var.set(data.get("psvpy_crosscheck_enabled", False))
     app.fire_case_var.set(data.get("fire_case_enabled", False))
     app.fire_case_scenario_combo.set(data.get("fire_case_scenario", "Adequate drainage + firefighting"))
     app.fire_case_factor_entry.delete(0, "end")

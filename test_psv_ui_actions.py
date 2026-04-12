@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import ttk
 from types import SimpleNamespace
 
+import pytest
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
@@ -27,6 +29,15 @@ from ui_mode_logic import (
     FIELD_START_TEMPERATURE,
     FIELD_VALVE_COUNT,
 )
+
+
+def _create_root_or_skip():
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk ortami hazir degil: {exc}")
+    root.withdraw()
+    return root
 
 
 class DummyApp:
@@ -84,8 +95,7 @@ def _build_app(root):
 
 
 def test_collect_psv_ui_payload_gas():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 95.0, "Ethane": 5.0}
@@ -125,13 +135,13 @@ def test_collect_psv_ui_payload_gas():
         assert payload["inputs"]["required_trim_material"] == "316SS"
         assert payload["inputs"]["required_inlet_rating_class"] == "CL300"
         assert payload["inputs"]["required_outlet_rating_class"] == "CL150"
+        assert payload["inputs"]["psvpy_crosscheck"] is False
     finally:
         root.destroy()
 
 
 def test_collect_psv_ui_payload_liquid_uses_kw():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Water": 100.0}
@@ -147,12 +157,14 @@ def test_collect_psv_ui_payload_liquid_uses_kw():
         app.entries[FIELD_PSV_KD].insert(0, "0.650")
         app.entries[FIELD_BACKPRESSURE_KB].delete(0, tk.END)
         app.entries[FIELD_BACKPRESSURE_KB].insert(0, "0.95")
+        app.psvpy_crosscheck_var.set(True)
 
         payload = collect_psv_ui_payload(app, converter=UnitConverter())
 
         assert payload["service_type"] == "Liquid"
         assert payload["inputs"]["Kw"] == 0.95
         assert payload["inputs"]["Kd_api520"] == 0.65
+        assert payload["inputs"]["psvpy_crosscheck"] is True
     finally:
         root.destroy()
 

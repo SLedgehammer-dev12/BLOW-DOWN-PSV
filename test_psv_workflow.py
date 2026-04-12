@@ -91,6 +91,46 @@ def test_execute_psv_workflow_liquid_screening():
     assert "Kw kullanılan" in result.report_bundle.text
 
 
+def test_execute_psv_workflow_liquid_psvpy_crosscheck():
+    converter = studio.UnitConverter()
+    inputs = {
+        "composition": {"Water": 1.0},
+        "psv_service_type": "Liquid",
+        "set_pressure_pa": converter.convert_pressure(12.0, "barg"),
+        "mawp_pa": converter.convert_pressure(12.0, "barg"),
+        "overpressure_pct": 10.0,
+        "relieving_temperature_k": converter.convert_temperature(30.0, "C"),
+        "p_total_backpressure_pa": converter.convert_pressure(2.0, "barg"),
+        "Kd_api520": 0.65,
+        "Kb": None,
+        "Kw": 0.95,
+        "Kc": 1.0,
+        "prv_design": "Conventional",
+        "psvpy_crosscheck": True,
+        "valve_count": 1,
+        "valve_type": "API 526 (PSV/PRV)",
+    }
+
+    result = execute_psv_workflow(
+        inputs=inputs,
+        service_type="Liquid",
+        valve_type="API 526 (PSV/PRV)",
+        valve_count=1,
+        rupture_disk="No",
+        flow_unit="L/min",
+        flow_value=150.0,
+        normalized_composition={"Water": 1.0},
+        active_vendor_catalog=load_vendor_catalog(),
+        load_api526_data=studio.load_api526_data,
+        load_api6d_data=studio.load_api6d_data,
+        converter=converter,
+    )
+
+    assert result.psvpy_crosscheck is not None
+    assert result.psvpy_crosscheck.area_mm2 > 0.0
+    assert "psvpy Cross-Check" in result.report_bundle.text
+
+
 def test_execute_psv_workflow_uses_valve_count_for_per_valve_selection():
     converter = studio.UnitConverter()
     composition = {"Methane": 1.0}

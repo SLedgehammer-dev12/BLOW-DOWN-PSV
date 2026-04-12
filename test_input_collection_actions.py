@@ -3,6 +3,8 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 
+import pytest
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
@@ -23,6 +25,15 @@ from ui_mode_logic import (
     FIELD_VALVE_CD,
     FIELD_VALVE_COUNT,
 )
+
+
+def _create_root_or_skip():
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        pytest.skip(f"Tk ortami hazir degil: {exc}")
+    root.withdraw()
+    return root
 
 
 class DummyApp:
@@ -75,8 +86,7 @@ def _build_app(root):
 
 
 def test_collect_blowdown_inputs_geometric():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 95.0, "Ethane": 5.0}
@@ -108,8 +118,7 @@ def test_collect_blowdown_inputs_geometric():
 
 
 def test_collect_blowdown_inputs_manual_volume():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -137,8 +146,7 @@ def test_collect_blowdown_inputs_manual_volume():
 
 
 def test_collect_blowdown_inputs_fire_case_updates_targets():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -168,8 +176,7 @@ def test_collect_blowdown_inputs_fire_case_updates_targets():
 
 
 def test_collect_blowdown_inputs_temperature_limit_validation():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -197,8 +204,7 @@ def test_collect_blowdown_inputs_temperature_limit_validation():
 
 
 def test_collect_blowdown_inputs_cd_validation():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -228,8 +234,7 @@ def test_collect_blowdown_inputs_cd_validation():
 
 
 def test_collect_blowdown_inputs_negative_pressure_validation():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -257,8 +262,7 @@ def test_collect_blowdown_inputs_negative_pressure_validation():
 
 
 def test_collect_blowdown_inputs_impossible_geometry_validation():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -288,8 +292,7 @@ def test_collect_blowdown_inputs_impossible_geometry_validation():
 
 
 def test_collect_blowdown_inputs_high_temperature_validation():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}
@@ -317,8 +320,7 @@ def test_collect_blowdown_inputs_high_temperature_validation():
 
 
 def test_collect_blowdown_inputs_zero_valve_count_validation():
-    root = tk.Tk()
-    root.withdraw()
+    root = _create_root_or_skip()
     try:
         app = _build_app(root)
         app.composition = {"Methane": 100.0}

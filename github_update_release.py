@@ -7,9 +7,9 @@ import urllib.error
 
 OWNER = "SLedgehammer-dev12"
 REPO = "BLOW-DOWN-PSV"
-TAG = "v2.4.1"
+TAG = "v2.4.2"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.4.1.exe")
+EXE_PATH = os.path.join(BASE_DIR, "dist", "Blowdown Studio_v2.4.2.exe")
 
 
 def resolve_github_token():
@@ -70,7 +70,7 @@ def create_release():
     data = json.dumps({
         "tag_name": TAG,
         "name": f"Release {TAG} (Blowdown Studio)",
-        "body": "Changes in this release: 1. Strengthened input validation and crash handling for blowdown/API 2000 workflows. 2. Added professional PSV and blowdown CSV/PDF reporting plus toolbar/copy-friendly UI improvements. 3. Expanded regression coverage with edge-case, multicomponent, plotting, and solver-robustness tests. 4. Refined vendor exact-selection metadata and overall workflow modularization.",
+        "body": "Changes in this release: 1. Added optional psvpy cross-check support for Steam and Liquid PSV sizing while keeping the native API 520 engine as the primary result. 2. Extended PSV reports with psvpy source, cross-check area, and delta-versus-native visibility. 3. Added settings/UI plumbing for psvpy cross-check and published release history in the new About dialog. 4. Hardened Tk-based regression tests so environments with missing Tcl/Tk skip cleanly instead of failing.",
         "draft": False,
         "prerelease": False
     }).encode('utf-8')
