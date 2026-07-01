@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Build artifacts
+Blowdown_app/build/
+Blowdown_app/dist/
+Blowdown_app/*.spec
+
+# Large binaries
+Blowdown Studio/legacy/*.exe
+HydDown/hyddown_main.exe
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

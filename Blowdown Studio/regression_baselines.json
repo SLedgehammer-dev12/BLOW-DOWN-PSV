@@ -1,0 +1,32 @@
+{
+  "api520_gas_subcritical_area_mm2": {
+    "value": 4249.06,
+    "rel_tol": 0.02
+  },
+  "api520_steam_area_mm2": {
+    "value": 1285.36,
+    "rel_tol": 0.02
+  },
+  "api520_liquid_area_mm2": {
+    "value": 3066.75,
+    "rel_tol": 0.02
+  },
+  "native_blowdown_pipeline": {
+    "required_area_mm2": {
+      "value": 2258.31,
+      "rel_tol": 0.08
+    },
+    "time_to_target_s": {
+      "value": 896.9,
+      "rel_tol": 0.08
+    },
+    "min_gas_temperature_c": {
+      "value": 14.39,
+      "abs_tol": 8.0
+    },
+    "final_wall_temperature_c": {
+      "value": 29.49,
+      "abs_tol": 8.0
+    }
+  }
+}
