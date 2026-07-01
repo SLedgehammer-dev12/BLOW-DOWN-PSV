@@ -89,8 +89,63 @@ Current integration status:
 - Not usable yet.
 - Needs a direct official PDF or a different official brochure link.
 
+### VYC Industrial
+
+Downloaded official document:
+
+- `source_docs/vyc_285_286_asme_uscs.pdf`
+
+Useful extracted facts:
+
+- Models `285` and `286` explicitly publish `A0` flow areas for `1/2" x 1"` through `1 1/4" x 2"`.
+- The same brochure publishes gas / steam `Kdr` values on an ASME VIII Div.1 / API 520 sizing basis.
+- Pressure windows and flanged-versus-threaded construction details are clear enough for screening normalization.
+
+Current integration status:
+
+- Added into the default JSON catalog as explicit conventional vendor models.
+- `Model 285` is carried as threaded NPT screening entries.
+- `Model 286` is carried as flanged ASME B16.5 screening entries.
+- Code-stamp metadata was left blank because it was not explicitly normalized from the brochure text.
+
+### HEROSE
+
+Downloaded official document:
+
+- `source_docs/herose_06120_06121_datasheet_en.pdf`
+
+Useful extracted facts:
+
+- Type `06120 / 06121` publishes explicit `A0` flow areas for `DN15` through `DN100`.
+- The same datasheet publishes gas/vapour discharge coefficients for each size band.
+- The datasheet also provides a clear set-pressure window and TÜV/AD2000 approval basis.
+
+Current integration status:
+
+- Added into the default JSON catalog as explicit conventional vendor models.
+- `DN15` through `DN100` are carried as AD2000-based screening entries.
+- Records intentionally keep a non-ASME code stamp so ASME/UV-specific searches continue to prefer certified ASME/NB families.
+
+## Regional directory expansion
+
+This round also added a non-destructive `manufacturer_directory` layer to the official JSON catalog.
+
+Purpose:
+
+- Track official manufacturers sold across the Americas, Europe, and Asia.
+- Distinguish between:
+  - manufacturers already normalized into screening
+  - manufacturers confirmed from official sources but still `directory-only`
+
+Current directory-only targets:
+
+- Emerson Crosby / Anderson Greenwood
+- Seetru
+- ARI SAFE / REYCO
+- Yoshitake
+
 ## Recommended next step
 
 1. Add manufacturer and series filters to the UI so the user can narrow screening to a chosen vendor family.
 2. Introduce trim- and pressure-class-specific imports where vendor data are available.
-3. Add support for additional non-API families using the same explicit-model schema.
+3. Normalize one directory-only family at a time into explicit screening records, starting with Seetru.

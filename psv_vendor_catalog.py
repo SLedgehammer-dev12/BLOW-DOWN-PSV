@@ -5,6 +5,7 @@ from functools import lru_cache
 import csv
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Iterable
 
@@ -86,6 +87,12 @@ class VendorCatalogEvaluation:
 
 def default_vendor_catalog_path() -> Path:
     return DEFAULT_VENDOR_CATALOG_PATH
+
+
+def _resolve_vendor_catalog_source(path: str | Path | None = None) -> Path:
+    if path is None:
+        return default_vendor_catalog_path()
+    return Path(path)
 
 
 def _api526_effective_orifices() -> list[tuple[str, float, str, str]]:
@@ -243,6 +250,18 @@ def _records_from_csv(source_path: Path) -> tuple[str, list[dict]]:
 
 
 @lru_cache(maxsize=8)
+def _load_vendor_catalog_payload_cached(path_key: str) -> dict:
+    source_path = _resolve_vendor_catalog_source(None if path_key == "__default__" else path_key)
+    if not source_path.exists() or source_path.suffix.lower() == ".csv":
+        return {}
+
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+@lru_cache(maxsize=8)
 def _load_vendor_catalog_cached(path_key: str) -> tuple[VendorPSVModel, ...]:
     if path_key == "__default__":
         source_path = default_vendor_catalog_path()
@@ -299,6 +318,20 @@ def load_vendor_catalog(path: str | Path | None = None) -> list[VendorPSVModel]:
     return list(_load_vendor_catalog_cached(str(Path(path))))
 
 
+def load_vendor_catalog_metadata(path: str | Path | None = None) -> dict:
+    if path is None:
+        return dict(_load_vendor_catalog_payload_cached("__default__"))
+    return dict(_load_vendor_catalog_payload_cached(str(Path(path))))
+
+
+def load_vendor_directory(path: str | Path | None = None) -> list[dict]:
+    payload = load_vendor_catalog_metadata(path)
+    directory = payload.get("manufacturer_directory", [])
+    if not isinstance(directory, list):
+        return []
+    return [dict(item) for item in directory if isinstance(item, dict)]
+
+
 def summarize_vendor_catalog(catalog: list[VendorPSVModel]) -> dict[str, object]:
     manufacturers = sorted({model.manufacturer for model in catalog})
     series = sorted({f"{model.manufacturer} / {model.series}" for model in catalog})
@@ -322,6 +355,53 @@ def summarize_vendor_catalog(catalog: list[VendorPSVModel]) -> dict[str, object]
         "series": series,
         "exact_metadata_counts": exact_metadata_counts,
     }
+
+
+def summarize_vendor_catalog_path(path: str | Path | None = None) -> dict[str, object]:
+    summary = summarize_vendor_catalog(load_vendor_catalog(path))
+    payload = load_vendor_catalog_metadata(path)
+    directory = load_vendor_directory(path)
+    if not directory:
+        return summary
+
+    coverage_regions = sorted(
+        {
+            str(region)
+            for item in directory
+            for region in item.get("regions", [])
+            if str(region).strip()
+        }
+    )
+    integrated_manufacturers = sorted(
+        {
+            str(item["manufacturer"])
+            for item in directory
+            if item.get("screening_models_included")
+        }
+    )
+    directory_only_manufacturers = sorted(
+        {
+            str(item["manufacturer"])
+            for item in directory
+            if not item.get("screening_models_included")
+        }
+    )
+    regional_counts = {
+        region: sum(1 for item in directory if region in item.get("regions", []))
+        for region in coverage_regions
+    }
+
+    summary.update(
+        {
+            "source_count": len(payload.get("sources", [])) if isinstance(payload.get("sources", []), list) else 0,
+            "directory_manufacturer_count": len(directory),
+            "coverage_regions": coverage_regions,
+            "integrated_screening_manufacturers": integrated_manufacturers,
+            "directory_only_manufacturers": directory_only_manufacturers,
+            "regional_manufacturer_counts": regional_counts,
+        }
+    )
+    return summary
 
 
 def interpolate_kb_curve(points: tuple[KbCurvePoint, ...], backpressure_pct_of_set: float) -> tuple[float, list[str]]:
@@ -459,7 +539,9 @@ def _matches_exact_selection_window(
     if required_code_stamp:
         required_norm = required_code_stamp.strip().lower()
         stamp_norm = model.code_stamp.strip().lower()
-        if stamp_norm and required_norm not in stamp_norm:
+        stamp_tokens = re.findall(r"[a-z0-9]+", stamp_norm)
+        required_tokens = re.findall(r"[a-z0-9]+", required_norm) or [required_norm]
+        if stamp_norm and not all(token in stamp_tokens for token in required_tokens):
             return False, warnings
         if not stamp_norm:
             warnings.append("Code-stamp field was not present in the vendor catalog record.")
@@ -499,6 +581,35 @@ def _matches_exact_selection_window(
     return True, warnings
 
 
+def _exact_metadata_penalty(
+    model: VendorPSVModel,
+    *,
+    set_pressure_pa: float | None = None,
+    required_trim_code: str | None = None,
+    required_code_stamp: str | None = None,
+    required_body_material: str | None = None,
+    required_trim_material: str | None = None,
+    required_inlet_rating_class: str | None = None,
+    required_outlet_rating_class: str | None = None,
+) -> int:
+    penalty = 0
+    if set_pressure_pa is not None and model.set_pressure_min_pa is None and model.set_pressure_max_pa is None:
+        penalty += 1
+    if required_trim_code and not model.trim_code:
+        penalty += 1
+    if required_code_stamp and not model.code_stamp:
+        penalty += 1
+    if required_body_material and not model.body_material:
+        penalty += 1
+    if required_trim_material and not model.trim_material:
+        penalty += 1
+    if required_inlet_rating_class and not model.inlet_rating_class:
+        penalty += 1
+    if required_outlet_rating_class and not model.outlet_rating_class:
+        penalty += 1
+    return penalty
+
+
 def evaluate_vendor_models_for_gas_service(
     sizing: PSVGasSizingResult,
     required_flow_kg_h: float,
@@ -517,7 +628,25 @@ def evaluate_vendor_models_for_gas_service(
     models = catalog if catalog is not None else load_vendor_catalog()
     design_key = valve_design.strip().lower()
     candidate_models = [model for model in models if model.design_type.strip().lower() == design_key]
-    candidate_models.sort(key=lambda item: (item.effective_area_mm2, item.actual_area_mm2, item.manufacturer, item.series, item.size_label))
+    candidate_models.sort(
+        key=lambda item: (
+            _exact_metadata_penalty(
+                item,
+                set_pressure_pa=set_pressure_pa,
+                required_trim_code=required_trim_code,
+                required_code_stamp=required_code_stamp,
+                required_body_material=required_body_material,
+                required_trim_material=required_trim_material,
+                required_inlet_rating_class=required_inlet_rating_class,
+                required_outlet_rating_class=required_outlet_rating_class,
+            ),
+            item.effective_area_mm2,
+            item.actual_area_mm2,
+            item.manufacturer,
+            item.series,
+            item.size_label,
+        )
+    )
 
     required_flow_per_valve_kg_h = required_flow_kg_h / max(valve_count, 1)
     required_effective_area_per_valve_mm2 = sizing.A_req_mm2 / max(valve_count, 1)

@@ -11,6 +11,7 @@ from psv_vendor_catalog import (
     estimate_family_kb,
     evaluate_vendor_models_for_gas_service,
     load_vendor_catalog,
+    summarize_vendor_catalog_path,
     summarize_vendor_catalog,
 )
 
@@ -36,12 +37,24 @@ def test_vendor_catalog_selection():
         "Flow Safe",
         "Spirax Sarco",
         "Goetze",
+        "HEROSE",
+        "VYC Industrial",
     }.issubset(manufacturers)
 
     summary = summarize_vendor_catalog(catalog)
+    summary_with_directory = summarize_vendor_catalog_path()
     assert summary["exact_metadata_counts"]["code_stamp"] >= 15
     assert summary["exact_metadata_counts"]["body_material"] >= 12
     assert summary["exact_metadata_counts"]["set_pressure_range"] >= 3
+    assert summary_with_directory["directory_manufacturer_count"] >= 10
+    assert summary_with_directory["coverage_regions"] == ["Americas", "Asia", "Europe"]
+
+    vyc_models = [model for model in catalog if model.manufacturer == "VYC Industrial"]
+    assert len(vyc_models) == 8
+    assert any(model.model_code == "286-1x1.5" for model in vyc_models)
+    herose_models = [model for model in catalog if model.manufacturer == "HEROSE"]
+    assert len(herose_models) == 9
+    assert any(model.model_code == "06120-06121-DN100" for model in herose_models)
 
     sample_catalog = build_builtin_vendor_catalog()
     assert any(model.is_sample_data for model in sample_catalog)
@@ -161,7 +174,7 @@ def test_vendor_catalog_selection():
     )
     assert low_flow_eval.selected is not None
     print(f"Selected low-flow model: {low_flow_eval.selected.model.manufacturer} {low_flow_eval.selected.model.model_code}")
-    assert low_flow_eval.selected.model.manufacturer in {"Goetze", "Spirax Sarco"}
+    assert low_flow_eval.selected.model.manufacturer in {"Goetze", "Spirax Sarco", "HEROSE"}
 
     low_flow_uv_eval = evaluate_vendor_models_for_gas_service(
         sizing=low_flow,

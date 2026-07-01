@@ -22,6 +22,8 @@ def test_get_active_vendor_catalog_summary_builtin():
     assert summary["model_count"] > 0
     assert len(summary["manufacturers"]) > 0
     assert "exact_metadata_counts" in summary
+    assert summary["directory_manufacturer_count"] >= len(summary["manufacturers"])
+    assert summary["coverage_regions"] == ["Americas", "Asia", "Europe"]
 
 
 def test_vendor_catalog_message_formatters():
@@ -29,6 +31,9 @@ def test_vendor_catalog_message_formatters():
         "catalog_name": "Demo Catalog",
         "model_count": 3,
         "manufacturers": ["A", "B"],
+        "coverage_regions": ["Americas", "Europe"],
+        "directory_manufacturer_count": 4,
+        "directory_only_manufacturers": ["C"],
         "exact_metadata_counts": {
             "trim_code": 1,
             "set_pressure_range": 2,
@@ -44,6 +49,8 @@ def test_vendor_catalog_message_formatters():
     assert "Toplam model: 3" in overview
     assert "trim=1" in loaded
     assert "materials=2/1" in overview
+    assert "Bolgesel kapsam: Americas, Europe" in loaded
+    assert "Uretici dizini: 4" in overview
 
 
 if __name__ == "__main__":
