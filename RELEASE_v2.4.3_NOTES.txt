@@ -1,0 +1,21 @@
+Blowdown Studio v2.4.3
+
+New Engine: DCMR Rijnmond Analytical Blowdown
+- Closed-form adiabatic isentropic method (single-step, no iteration)
+- Reference standard for Dutch VR (Veiligheidsrapport) safety reports
+- Conservative results — assumes continuous choked flow
+- Instant calculation (< 0.01 second)
+
+Critical Bug Fixes:
+- Fixed mass-floor clamp bug causing bisection crash and inflated orifice areas
+- API 521 fire case heat input now properly applied to energy balance
+- Two-phase engine now uses temperature-dependent steel Cp
+
+UI Improvements:
+- Horizontal & vertical scrollbars with cross-platform mouse wheel support
+- Resizable columns (PanedWindow between settings and gas composition)
+- Input field visibility restored after mode changes
+- Smarter update checking (filters draft/prerelease)
+
+Full changelog: CHANGELOG.md
+Test coverage: 38+ tests passing across 12+ test files
