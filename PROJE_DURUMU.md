@@ -1,6 +1,6 @@
 # Blowdown Studio - Proje Durumu
 
-Son guncelleme: 9 Nisan 2026
+Son guncelleme: 2 Temmuz 2026
 
 ## Aktif urun
 
@@ -18,6 +18,11 @@ Son guncelleme: 9 Nisan 2026
   - Enerji dengesi
   - Duvar-gaz isi transferi
   - Faz siniri screening uyarilari
+- DCMR Rijnmond (Analitik) motoru
+  - Hollanda DCMR otoritesinin standart yontemi
+  - Kapali-formul, iterasyonsuz anlik cozum
+  - Adyabatik-izentropik, surekli choked akis
+  - VR basvurulari icin referans kabul edilir
 - HydDown motoru
   - Ikinci transient motor
   - Paketleme ve import yolu duzeltildi
@@ -58,6 +63,22 @@ Son guncelleme: 9 Nisan 2026
 - API 2000 emergency venting screening
 
 ## Son tamamlanan iyilestirmeler
+
+### v2.4.3 (2 Temmuz 2026)
+
+- DCMR Rijnmond analitik blowdown motoru eklendi (kapali-formul, anlik cozum)
+- Blowdown Analizi sekmesine yatay ve dikey scrollbar eklendi
+- Ana ayarlar ve gaz kompozisyonu arasina PanedWindow (suruklenebilir ayrac) eklendi
+- macOS trackpad ve Linux fare tekerlegi uyumlulugu eklendi
+- GitHub draft/prerelease guncelleme filtrelemesi eklendi
+- Native blowdown motorunda kütle clamp bug'i giderildi (buyuk alanlarda RuntimeError)
+- API 521 fire case isi girdisi native enerji dengesine eklendi
+- Bisection yakinsamama durumunda uyari eklendi
+- Two-phase motorunda sicakliga bagli celik Cp modeli kullanima alindi
+- test_app_metadata.py v2.4.3'e guncellendi
+- test_dcmr_engine.py (12 yeni test) ve diger test guncellemeleri (toplam ~38 test)
+
+### Onceki iyilestirmeler
 
 - `constants.py` ile ortak sabitler tek yerde toplandi
 - `materials.py` ile sicakliga bagli karbon celigi `Cp(T)` modeli eklendi
@@ -156,6 +177,7 @@ Aktif test basliklari:
 - `test_api520_fluid_services.py`
 - `test_api521_fire_case.py`
 - `test_asme_section_xiii.py`
+- `test_dcmr_engine.py`
 - `test_psv_vendor_catalog.py`
 - `test_vendor_catalog_import.py`
 - `test_psv_reporting.py`

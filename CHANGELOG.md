@@ -8,19 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v2.4.3] - 2026-07-02
 
 ### Added
+- DCMR Rijnmond analytical blowdown engine — closed-form adiabatic isentropic method from DCMR Milieudienst Rijnmond (NL). Instant single-step calculation (no iteration needed). Reference method for Dutch VR safety reports.
 - Horizontal and vertical scrollbars to Blowdown Analysis tab for better usability across different screen resolutions
 - PanedWindow between main settings and gas composition sections, allowing users to resize columns
 - macOS trackpad and Linux mouse wheel compatibility
 - Shift+MouseWheel support for horizontal scrolling
-- 7 new tests covering UI and update mechanism changes
+- Bisection convergence warning when native engine sizing exceeds max iterations without 2% tolerance
+- Bisection upper bound capped with pipe cross-sectional area for faster convergence
+- 12+ new tests covering DCMR engine, UI scroll, and update mechanism changes
+
+### Fixed
+- Critical mass-floor bug in native blowdown engine: large orifice areas (1.0 m2) caused energy balance division by 1e-7, producing negative internal energy (-8e15 J/kg) and RuntimeError during bisection. Fixed by detecting mass depletion and breaking early instead of clamping.
+- API 521 fire case heat input now properly applied to wall energy balance (previously computed but never used in simulation)
+- Input fields under "Temel Girdiler" section now remain visible after mode changes
+- Update notification no longer appears for draft/prerelease versions
+- Two-phase flow engine now uses temperature-dependent carbon steel Cp (carbon_steel_cp_j_kgk) instead of constant 480 J/kg.K
 
 ### Changed
 - Scrollregion now automatically refreshes after mode changes to ensure input field visibility
 - GitHub update check now filters out draft and prerelease versions
-
-### Fixed
-- Input fields under "Temel Girdiler" section now remain visible after mode changes
-- Update notification no longer appears for draft/prerelease versions
+- test_native_blowdown_api521.py now imports directly from native_blowdown_engine (avoids tkinter hang on headless)
+- test_app_metadata.py updated to v2.4.3
 
 ## [v2.4.2] - 2026-04-13
 

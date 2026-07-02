@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from constants import P_ATM, R_U
+from materials import carbon_steel_cp_j_kgk
 from thermodynamic_utils import (
     build_state as _build_state,
     get_h_inner as _get_h_inner,
@@ -270,7 +271,7 @@ def run_two_phase_blowdown_simulation(
     Cd_valve = float(inputs.get("Cd_valve", inputs.get("Cd", 0.975)))
     A_inner = float(inputs.get("A_inner", 1.0))
     M_steel = float(inputs.get("M_steel", 100.0))
-    Cp_steel = float(inputs.get("Cp_steel", 480.0))
+    Cp_steel_default = float(inputs.get("Cp_steel", 480.0))
     HT_enabled = bool(inputs.get("HT_enabled", True))
     char_length_m = max(float(inputs.get("D_in_m", 1.0)) / 2.0, 0.01)
 
@@ -324,7 +325,7 @@ def run_two_phase_blowdown_simulation(
         if HT_enabled:
             h_in = _get_h_inner(T_sys, T_wall, state, char_length_m)
             Q_in_watts = h_in * A_inner * (T_wall - T_sys)
-            T_wall += (-Q_in_watts * dt) / max(M_steel * Cp_steel, 1e-9)
+            T_wall += (-Q_in_watts * dt) / max(M_steel * carbon_steel_cp_j_kgk(T_wall), 1e-9)
         else:
             h_in = 0.0
             Q_in_watts = 0.0

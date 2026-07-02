@@ -2,7 +2,7 @@
 
 ## Mevcut durum
 
-0. Aktif surum `v2.4.2`.
+0. Aktif surum `v2.4.3`.
 1. Aktif uygulama adi `Blowdown Studio` olarak standardize edildi.
 2. Aktif giris dosyasi `blowdown_studio.py` oldu.
 3. `Blow Down PSV V3.py` yalniz geriye donuk uyumluluk baslaticisi olarak birakildi.
@@ -21,7 +21,18 @@
 - Resmi vendor screening veri seti: `vendor_data/psv_vendor_catalog_official.json`
 - Vendor kaynak notlari: `vendor_data/README.md`
 - HydDown adaptoru: `hyddown_adapter.py`
-- Paketleme: `blowdown_studio_v2.4.2.spec`
+- Paketleme: `blowdown_studio_v2.4.3.spec`
+
+## v2.4.3
+
+- Blowdown Analizi sekmesine yatay ve dikey scrollbar eklendi; farkli cozunurluklerde kaydirma destegi saglandi.
+- Ana ayarlar ve gaz kompozisyonu arasina PanedWindow eklenerek kolonlar kullanici tarafindan boyutlandirabilir hale getirildi.
+- macOS trackpad ve Linux fare tekerlegi uyumlulugu eklendi.
+- GitHub guncelleme kontrolu draft ve prerelease surumlerini filtreleyecek sekilde iyilestirildi.
+- **Hata duzeltmesi:** Buyuk blowdown alanlarinda kütle clamp bug'i giderildi (bisection ilk adimda crash oluyordu).
+- **Hata duzeltmesi:** API 521 fire case isi girdisi native enerji dengesine eklendi.
+- **Yeni motor: DCMR Rijnmond (Analitik)** — Hollanda DCMR otoritesi tarafindan yayinlanan kapali-formul blowdown hesaplama yontemi eklendi. Adyabatik-izentropik, surekli choked akis kabuluyle anlik (iterasyonsuz) sonuc uretir. VR (Veiligheidsrapport) basvurulari icin referans yontem.
+- Two-phase motorunda sicakliga bagli celik Cp modeli (carbon_steel_cp_j_kgk) kullanima alindi.
 
 ## v2.4.2
 
@@ -48,7 +59,15 @@
 - `test_api520_preliminary.py`
 - `test_psv_vendor_catalog.py`
 - `test_native_blowdown_api521.py`
+- `test_dcmr_engine.py`
 - `test_hyddown_adapter.py`
+- `test_ui_builders.py`
+- `test_ui_state_actions.py`
+- `test_update_actions.py`
+- `test_update_flow_actions.py`
+- `test_blowdown_workflow.py`
+- `test_app_metadata.py`
+- `test_ui_mode_logic.py`
 
 ## Not
 
