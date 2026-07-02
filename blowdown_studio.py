@@ -46,6 +46,7 @@ from blowdown_reporting import export_blowdown_report_csv, export_blowdown_repor
 from constants import P_ATM, R_U, T_STD
 from methodology_content import build_methodology_text
 from native_blowdown_engine import (
+    DCMR_ENGINE_NAME,
     NATIVE_ENGINE_NAME,
     find_native_blowdown_area,
     run_native_blowdown_simulation,
@@ -437,6 +438,7 @@ class Application(tk.Tk):
             self,
             frame,
             app_version=APP_VERSION,
+            dcmr_engine_name=DCMR_ENGINE_NAME,
             native_engine_name=NATIVE_ENGINE_NAME,
             segmented_engine_name=SEGMENTED_ENGINE_NAME,
             two_phase_engine_name=TWO_PHASE_ENGINE_NAME,
@@ -703,6 +705,7 @@ class Application(tk.Tk):
 
     def show_methodology(self):
         content = build_methodology_text(
+            dcmr_engine_name=DCMR_ENGINE_NAME,
             native_engine_name=NATIVE_ENGINE_NAME,
             segmented_engine_name=SEGMENTED_ENGINE_NAME,
             two_phase_engine_name=TWO_PHASE_ENGINE_NAME,

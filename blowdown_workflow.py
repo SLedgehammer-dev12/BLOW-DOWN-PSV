@@ -18,10 +18,13 @@ from blowdown_reporting import BlowdownReportBundle
 from constants import P_ATM
 from hyddown_adapter import find_hyddown_blowdown_area, run_hyddown_blowdown_simulation
 from native_blowdown_engine import (
+    DCMR_ENGINE_NAME,
     NATIVE_ENGINE_NAME,
     calculate_reaction_force,
     parse_outlet_diameter_mm,
+    find_dcmr_blowdown_area,
     find_native_blowdown_area,
+    run_dcmr_blowdown_simulation,
     run_native_blowdown_simulation,
 )
 from segmented_pipeline import (
@@ -36,6 +39,8 @@ TWO_PHASE_ENGINE_NAME = "Two-Phase Screening"
 
 
 def size_blowdown_area(engine_name, inputs, progress_callback=None, abort_flag=None):
+    if engine_name == DCMR_ENGINE_NAME:
+        return find_dcmr_blowdown_area(inputs, progress_callback, abort_flag)
     if engine_name == "HydDown":
         return find_hyddown_blowdown_area(inputs, progress_callback, abort_flag)
     if engine_name == SEGMENTED_ENGINE_NAME:
@@ -46,6 +51,8 @@ def size_blowdown_area(engine_name, inputs, progress_callback=None, abort_flag=N
 
 
 def run_blowdown_engine(engine_name, inputs, total_selected_area, progress_callback=None, abort_flag=None):
+    if engine_name == DCMR_ENGINE_NAME:
+        return run_dcmr_blowdown_simulation(inputs, total_selected_area, progress_callback, abort_flag, silent=False)
     if engine_name == "HydDown":
         return run_hyddown_blowdown_simulation(inputs, total_selected_area, progress_callback, abort_flag, silent=False)
     if engine_name == SEGMENTED_ENGINE_NAME:

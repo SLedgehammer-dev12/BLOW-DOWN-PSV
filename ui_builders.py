@@ -144,6 +144,7 @@ def build_main_settings_ui(
     frame,
     *,
     app_version: str,
+    dcmr_engine_name: str,
     native_engine_name: str,
     segmented_engine_name: str,
     two_phase_engine_name: str,
@@ -230,7 +231,7 @@ def build_main_settings_ui(
     ttk.Label(app.engine_options_frame, text="Blowdown Motoru:").grid(row=0, column=0, padx=6, pady=5, sticky="w")
     app.engine_combo = ttk.Combobox(
         app.engine_options_frame,
-        values=[native_engine_name, segmented_engine_name, two_phase_engine_name, "HydDown"],
+        values=[dcmr_engine_name, native_engine_name, segmented_engine_name, two_phase_engine_name, "HydDown"],
         state="readonly",
     )
     app.engine_combo.grid(row=0, column=1, padx=6, pady=5, sticky="ew")

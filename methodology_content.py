@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def build_methodology_text(*, native_engine_name: str, segmented_engine_name: str, two_phase_engine_name: str) -> str:
+def build_methodology_text(*, native_engine_name: str, segmented_engine_name: str, two_phase_engine_name: str, dcmr_engine_name: str = "") -> str:
     return (
         "HESAPLAMA METODOLOJISI VE STANDARTLAR\n\n"
         "Bu program, basincli sistemlerin (boru hatti, tank, kap) guvenli tahliyesini "
@@ -24,7 +24,11 @@ def build_methodology_text(*, native_engine_name: str, segmented_engine_name: st
         f"- {native_engine_name}, enerji dengesi ve ic isi transferi ile tek-hacim blowdown cozumu yapar.\n"
         f"- {segmented_engine_name}, pipeline'i seri bagli kontrol hacimlerine bolerek line-pack etkisini screening seviyesinde temsil eder.\n"
         f"- {two_phase_engine_name}, homogeneous-equilibrium esasli screening yapar; quality ve akis rejimi ozeti uretir ancak tam validated two-phase solver degildir.\n"
-        "- HydDown motoru, ayri bir kutuphane uzerinden vessel/pipeline geometrisi ile transient cozum uretir.\n"
+         "- HydDown motoru, ayri bir kutuphane uzerinden vessel/pipeline geometrisi ile transient cozum uretir.\n"
+         f"- {dcmr_engine_name} motoru, DCMR Milieudienst Rijnmond tarafindan yayinlanan analitik kapali-formul yaklasimini kullanir. "
+         "Adyabatik-izentropik genlesme ve surekli choked akis kabuluyle anlik (iterasyonsuz) sonuc uretir. "
+         "Duvar isi transferini ihmal ettigi icin konservatif (daha buyuk alan) sonuc verir. "
+         "Hollanda VR (Veiligheidsrapport) basvurularinda referans yontem olarak kabul edilir.\n"
         "- Her iki motor da hedef basinca inis suresine gore gerekli tahliye alanini iteratif olarak bulur.\n"
         "- API 521 fire case secenegi aktifse hedef, screening seviyesinde 50% design pressure / 15 min kuralindan turetilir; open-pool-fire heat input kabulu ayri satirda raporlanir.\n"
         "- MDMT ve sicaklik profilleri screening amaclidir; yangin, validated two-phase ve dagitilmis boru hatti transientleri icin ileri dogrulama gerekebilir.\n\n"

@@ -11,6 +11,7 @@ from thermodynamic_utils import build_state, evaluate_phase_screening, get_h_inn
 
 
 NATIVE_ENGINE_NAME = "Yerel Çözücü"
+DCMR_ENGINE_NAME = "DCMR Rijnmond (Analitik)"
 
 
 def calculate_flow_rate(
@@ -251,7 +252,6 @@ def find_native_blowdown_area(inputs, progress_callback=None, abort_flag=None):
         if sim_time is None:
             return None
         if abs(sim_time - target_time) / target_time < 0.02:
-            converged = True
             return a_mid
         if sim_time > target_time:
             a_low = a_mid
@@ -265,3 +265,136 @@ def find_native_blowdown_area(inputs, progress_callback=None, abort_flag=None):
             f"Result ~ {a_mid:.6f} m2 ({a_mid*1e6:.1f} mm2) may not meet 2% tolerance."
         )
     return a_mid
+
+
+def _dcmr_gas_props(inputs):
+    comp = inputs["composition"]
+    p0 = inputs["p0_pa"]
+    t0 = inputs["T0_k"]
+    state = build_state(comp, p0, t0, phase=CP.iphase_gas)
+    k = state.cpmass() / state.cvmass()
+    mw = state.molar_mass() * 1000.0
+    z_factor = state.compressibility_factor()
+    rho0 = state.rhomass()
+    return k, mw, z_factor, rho0
+
+
+def _dcmr_crit_factor(k):
+    return (2.0 / (k + 1.0)) ** ((k + 1.0) / (2.0 * (k - 1.0)))
+
+
+def _dcmr_pressure_ratio_term(k, p0, p2):
+    exponent = (k - 1.0) / (2.0 * k)
+    return (p0 / p2) ** exponent - 1.0
+
+
+def _dcmr_area_formula(V_sys, k, mw, z_factor, t0_k, p0, p2, t_target, Cd, Kb):
+    C_crit = _dcmr_crit_factor(k)
+    term1 = (2.0 * V_sys) / ((k - 1.0) * Cd * Kb * C_crit * t_target)
+    term2 = _dcmr_pressure_ratio_term(k, p0, p2)
+    term3 = math.sqrt(mw / (z_factor * R_U * t0_k))
+    return term1 * term2 * term3
+
+
+def _dcmr_time_formula(V_sys, k, mw, z_factor, t0_k, p0, p2, A, Cd, Kb):
+    C_crit = _dcmr_crit_factor(k)
+    term1 = (2.0 * V_sys) / ((k - 1.0) * Cd * Kb * A * C_crit)
+    term2 = _dcmr_pressure_ratio_term(k, p0, p2)
+    term3 = math.sqrt(mw / (z_factor * R_U * t0_k))
+    return term1 * term2 * term3
+
+
+def run_dcmr_blowdown_simulation(inputs, vana_alani_m2, progress_callback=None, abort_flag=None, silent=False):
+    """
+    DCMR Rijnmond analytical blowdown: closed-form solution (no ODE).
+    Assumes adiabatic isentropic expansion and continuously choked flow.
+    """
+    del progress_callback, abort_flag
+
+    V_sys = inputs["V_sys"]
+    p0 = inputs["p0_pa"]
+    t0 = inputs["T0_k"]
+    p2 = inputs["p_target_blowdown_pa"]
+    comp = inputs["composition"]
+    cd_val = inputs.get("Cd_valve", 0.975)
+    kb_val = inputs.get("Kb", 1.0)
+
+    k, mw, Z, rho0 = _dcmr_gas_props(inputs)
+    m_initial = rho0 * V_sys
+
+    t_total = _dcmr_time_formula(V_sys, k, mw, Z, t0, p0, p2, vana_alani_m2, cd_val, kb_val)
+
+    if silent:
+        return max(t_total, 0.01)
+
+    pr_crit = (2.0 / (k + 1.0)) ** (k / (k - 1.0))
+    p_downstream = inputs.get("p_downstream", P_ATM)
+    p_crit = max(p_downstream / pr_crit, p2 * 1.01)
+
+    n_points = min(200, max(20, int(t_total / 2.0)))
+    records = []
+    for i in range(n_points + 1):
+        frac = i / n_points
+        t = frac * t_total
+        p = p0 * (1.0 - frac) ** ((2.0 * k) / (k - 1.0))
+        p = max(p, p2)
+        p_y = (p - P_ATM) / 1e5 if p > P_ATM else 0.0
+        T_y = t0 * ((p / p0) ** ((k - 1.0) / k)) if p > 1e3 else t0
+        m_y = m_initial * (p / p0) ** (1.0 / k) * (t0 / T_y)
+
+        is_choked = p >= p_crit
+        if is_choked:
+            flow_coeff = cd_val * kb_val * vana_alani_m2 * (2.0 / (k + 1.0)) ** ((k + 1.0) / (2.0 * (k - 1.0)))
+            mdot = flow_coeff * p * math.sqrt(k * mw / (Z * R_U * T_y))
+        else:
+            beta = max(p_downstream / max(p, 1e-12), 1e-12)
+            radicand = max(beta ** (2.0 / k) - beta ** ((k + 1.0) / k), 1e-12)
+            mdot = cd_val * kb_val * vana_alani_m2 * p * math.sqrt((2.0 * k * mw) / ((k - 1.0) * Z * R_U * T_y)) * math.sqrt(radicand)
+
+        records.append({
+            "t": t,
+            "p_sys": p,
+            "mdot_kg_s": mdot,
+            "T_sys": T_y,
+            "T_wall": t0,
+            "h_in": 0.0,
+            "rho_g": m_y / max(V_sys, 1e-12),
+            "m_sys": m_y,
+        })
+
+    df = pd.DataFrame(records)
+    df.attrs["engine"] = DCMR_ENGINE_NAME
+    df.attrs["time_to_target"] = t_total
+    df.attrs["warnings"] = []
+    return df
+
+
+def find_dcmr_blowdown_area(inputs, progress_callback=None, abort_flag=None):
+    """
+    DCMR Rijnmond direct formula for required blowdown orifice area.
+    No bisection needed — single analytical evaluation.
+    """
+    del progress_callback, abort_flag
+
+    V_sys = inputs["V_sys"]
+    p0 = inputs["p0_pa"]
+    t0 = inputs["T0_k"]
+    p2 = inputs["p_target_blowdown_pa"]
+    t_target = inputs["t_target_sec"]
+    cd_val = inputs.get("Cd_valve", 0.975)
+    kb_val = inputs.get("Kb", 1.0)
+
+    k, mw, Z, _ = _dcmr_gas_props(inputs)
+    A = _dcmr_area_formula(V_sys, k, mw, Z, t0, p0, p2, t_target, cd_val, kb_val)
+
+    pr_crit = (2.0 / (k + 1.0)) ** (k / (k - 1.0))
+    p_downstream = inputs.get("p_downstream", P_ATM)
+    if p2 / p0 > pr_crit:
+        import warnings
+        warnings.warn(
+            "DCMR motoru: hedef basinc kritik orana yakin. "
+            "Sub-sonik rejim etkili olabilir, sonuc konservatif olmayabilir. "
+            "Yerel Cozucu motorunu kullanmayi degerlendirin."
+        )
+
+    return A

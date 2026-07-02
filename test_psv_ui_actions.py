@@ -71,6 +71,7 @@ class DummyApp:
             self,
             frame,
             app_version="v2.3.1",
+            dcmr_engine_name="DCMR Rijnmond (Analitik)",
             native_engine_name="Yerel Çözücü",
             segmented_engine_name="Segmented Pipeline",
             two_phase_engine_name="Two-Phase Screening",

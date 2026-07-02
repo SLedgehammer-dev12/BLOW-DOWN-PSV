@@ -126,6 +126,8 @@ def build_mode_ui_state(*, mode: str, fire_case_enabled: bool, engine_name: str,
 
         if fire_case_enabled:
             run_button_text = f"{app_version} API 521 Fire Case Analizini Başlat"
+        elif "DCMR" in engine_name:
+            run_button_text = f"{app_version} DCMR Rijnmond Analizini Başlat"
         elif engine_name == "Segmented Pipeline":
             run_button_text = f"{app_version} Segmentli Pipeline Analizini Başlat"
         elif engine_name == "Two-Phase Screening":
@@ -152,7 +154,12 @@ def build_mode_ui_state(*, mode: str, fire_case_enabled: bool, engine_name: str,
             },
             helper_text=(
                 "Blowdown modu, hedef basınca iniş için zamana bağlı transient çözüm yapar. "
-                "Başlangıç basıncı, sıcaklık, geometri ve hedef süreyi girin. Fire case aktifse hedef koşullar otomatik türetilir."
+                "Başlangıç basıncı, sıcaklık, geometri ve hedef süreyi girin. "
+                "Fire case aktifse hedef koşullar otomatik türetilir. "
+                + (f"DCMR Rijnmond motoru: adyabatik-izentropik analitik formül. "
+                   f"Isı transferi yok, her zaman choked akış kabulü. "
+                   f"Konservatif (daha büyük alan) sonuç verir, anlık hesaplanır."
+                   if "DCMR" in engine_name else "")
             ),
             show_sys_type=True,
             show_engine_options=True,
