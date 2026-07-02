@@ -2,12 +2,21 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.3"
+APP_VERSION = "v2.4.4"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
 RELEASE_DATE_DISPLAY = "2 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.4",
+        "2 Temmuz 2026",
+        [
+            "GitHub Actions CI/CD eklendi: tag push'landiginda Windows .exe otomatik build edilip release'e yuklenir.",
+            "build.spec ile dinamik versiyon okuma; her surum icin ayri spec dosyasi gerekmez.",
+            "Eski sabit-surum spec dosyalari temizlendi.",
+        ],
+    ),
     (
         "v2.4.3",
         "2 Temmuz 2026",

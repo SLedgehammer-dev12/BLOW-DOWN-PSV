@@ -1,0 +1,18 @@
+Blowdown Studio v2.4.4
+
+CI/CD Pipeline:
+- GitHub Actions workflow added — Windows .exe automatically built and uploaded on tag push
+- Dynamic build.spec reads version from app_metadata.py (no version-specific spec files needed)
+- Old spec files cleaned up
+
+Previous v2.4.3 Highlights:
+- DCMR Rijnmond analytical blowdown engine (instant, no iteration)
+- Critical mass-floor bug fixed in native blowdown simulation
+- API 521 fire case heat input now applied to energy balance
+- Horizontal & vertical scrollbars with cross-platform mouse wheel support
+- Resizable columns (PanedWindow)
+- Input field visibility fixed after mode changes
+- Two-phase flow engine now uses temperature-dependent steel Cp
+- 38+ tests passing across 12+ test files
+
+Full changelog: CHANGELOG.md

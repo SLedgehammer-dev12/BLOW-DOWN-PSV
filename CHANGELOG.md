@@ -5,6 +5,16 @@ All notable changes to Blowdown Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.4] - 2026-07-02
+
+### Added
+- GitHub Actions CI/CD workflow for automatic Windows EXE builds
+- Dynamic version reading via `build.spec` (no more version-specific spec files needed)
+
+### Changed
+- Removed old version-specific spec files (`blowdown_studio_v2.4.1.spec`, `v2.4.2.spec`, `v2.4.3.spec`)
+- Workflow permissions fixed for release asset upload
+
 ## [v2.4.3] - 2026-07-02
 
 ### Added

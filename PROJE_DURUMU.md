@@ -64,6 +64,12 @@ Son guncelleme: 2 Temmuz 2026
 
 ## Son tamamlanan iyilestirmeler
 
+### v2.4.4 (2 Temmuz 2026)
+
+- GitHub Actions CI/CD eklendi (tag push → otomatik Windows .exe build + release)
+- `build.spec` ile dinamik versiyon okuma
+- Eski sabit-surum spec dosyalari temizlendi
+
 ### v2.4.3 (2 Temmuz 2026)
 
 - DCMR Rijnmond analitik blowdown motoru eklendi (kapali-formul, anlik cozum)
