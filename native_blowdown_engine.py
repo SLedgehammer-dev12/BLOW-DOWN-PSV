@@ -102,6 +102,7 @@ def run_native_blowdown_simulation(inputs, vana_alani_m2, progress_callback=None
     a_inner = inputs.get("A_inner", 1.0)
     m_steel = inputs.get("M_steel", 100.0)
     p_downstream = inputs.get("p_downstream", P_ATM)
+    fire_heat_w = inputs.get("fire_heat_input_w", 0.0)
     zaman_serisi = []
     screening_warnings = []
 
@@ -160,16 +161,22 @@ def run_native_blowdown_simulation(inputs, vana_alani_m2, progress_callback=None
         if ht_enabled:
             char_length_m = max(inputs.get("D_in_m", 1.0) / 2.0, 0.01)
             h_in = get_h_inner(t_sys, t_wall, state, characteristic_length_m=char_length_m)
-            q_in_watts = h_in * a_inner * (t_wall - t_sys)
+            q_in_conv = h_in * a_inner * (t_wall - t_sys)
             cp_steel = carbon_steel_cp_j_kgk(t_wall)
-            t_wall += (-q_in_watts * dt) / (m_steel * cp_steel)
+            t_wall += ((fire_heat_w - q_in_conv) * dt) / (m_steel * cp_steel)
+            q_in_watts = q_in_conv
         else:
-            q_in_watts = 0.0
+            q_in_watts = fire_heat_w
             h_in = 0.0
 
         old_m = m_fluid
-        m_fluid = max(1e-7, m_fluid - dm_kg_s * dt)
-        u_mass = ((u_mass * old_m) + (q_in_watts * dt) - (h_mass * (old_m - m_fluid))) / m_fluid
+        actual_dm = dm_kg_s * dt
+        if actual_dm >= old_m:
+            m_fluid = 1e-12
+            t += dt
+            break
+        m_fluid = old_m - actual_dm
+        u_mass = ((u_mass * old_m) + (q_in_watts * dt) - (h_mass * actual_dm)) / m_fluid
 
         d_p = abs(p_sys - p_old) / p_sys
         p_old = p_sys
@@ -224,8 +231,13 @@ def run_native_blowdown_simulation(inputs, vana_alani_m2, progress_callback=None
 
 def find_native_blowdown_area(inputs, progress_callback=None, abort_flag=None):
     target_time = inputs["t_target_sec"]
-    a_low, a_high = 1e-8, 2.0
+    pipe_area = None
+    if "D_in_m" in inputs:
+        pipe_area = math.pi * (inputs["D_in_m"] / 2.0) ** 2
+    a_high = min(pipe_area, 2.0) if pipe_area else 2.0
+    a_low = 1e-8
     max_iter = 35
+    converged = False
 
     for i in range(max_iter):
         if abort_flag and abort_flag.is_set():
@@ -239,10 +251,17 @@ def find_native_blowdown_area(inputs, progress_callback=None, abort_flag=None):
         if sim_time is None:
             return None
         if abs(sim_time - target_time) / target_time < 0.02:
+            converged = True
             return a_mid
         if sim_time > target_time:
             a_low = a_mid
         else:
             a_high = a_mid
 
+    if not converged:
+        import warnings
+        warnings.warn(
+            f"find_native_blowdown_area: did not converge after {max_iter} iterations. "
+            f"Result ~ {a_mid:.6f} m2 ({a_mid*1e6:.1f} mm2) may not meet 2% tolerance."
+        )
     return a_mid

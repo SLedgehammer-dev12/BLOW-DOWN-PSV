@@ -2,19 +2,10 @@ import sys
 import os
 import math
 
-# Ekleme Yapılan Dizini Bul
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
-import importlib.util
-
-spec = importlib.util.spec_from_file_location("blowdown_studio", os.path.join(current_dir, "blowdown_studio.py"))
-blowdown_studio = importlib.util.module_from_spec(spec)
-sys.modules["blowdown_studio"] = blowdown_studio
-spec.loader.exec_module(blowdown_studio)
-
-run_native_blowdown_simulation = blowdown_studio.run_native_blowdown_simulation
-find_native_blowdown_area = blowdown_studio.find_native_blowdown_area
+from native_blowdown_engine import run_native_blowdown_simulation, find_native_blowdown_area
 
 def test_typical_pipeline_blowdown():
     print("--- Native Blowdown API 521 Testi ---")
