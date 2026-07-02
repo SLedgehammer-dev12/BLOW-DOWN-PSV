@@ -24,7 +24,10 @@ def is_update_available(current_version: str, latest_version: str) -> bool:
 def fetch_latest_release(url: str = LATEST_RELEASE_URL) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req) as response:
-        return json.loads(response.read().decode())
+        data = json.loads(response.read().decode())
+    if data.get("draft", False) or data.get("prerelease", False):
+        return {}
+    return data
 
 
 def select_release_asset(release_data: dict):

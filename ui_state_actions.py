@@ -145,4 +145,8 @@ def apply_mode_change(
 
     app.btn_run.config(text=state.run_button_text)
     placeholder_callback(state.placeholder_mode)
+
+    if hasattr(app, "left_canvas") and hasattr(app, "scrollregion_refresh"):
+        app.after(20, app.scrollregion_refresh)
+
     return state

@@ -555,12 +555,20 @@ def build_application_shell_ui(app) -> None:
     app.paned.add(app.right_pane, weight=1)
 
     app.left_pane.columnconfigure(0, weight=1)
+    app.left_pane.columnconfigure(2, weight=0)
     app.left_pane.rowconfigure(0, weight=1)
+    app.left_pane.rowconfigure(2, weight=0)
+
     app.left_canvas = tk.Canvas(app.left_pane, highlightthickness=0, background="#f8f9fa")
-    app.left_scrollbar = ttk.Scrollbar(app.left_pane, orient=tk.VERTICAL, command=app.left_canvas.yview)
-    app.left_canvas.configure(yscrollcommand=app.left_scrollbar.set)
+    app.left_v_scrollbar = ttk.Scrollbar(app.left_pane, orient=tk.VERTICAL, command=app.left_canvas.yview)
+    app.left_h_scrollbar = ttk.Scrollbar(app.left_pane, orient=tk.HORIZONTAL, command=app.left_canvas.xview)
+    app.left_canvas.configure(
+        yscrollcommand=app.left_v_scrollbar.set,
+        xscrollcommand=app.left_h_scrollbar.set,
+    )
     app.left_canvas.grid(row=0, column=0, sticky="nsew")
-    app.left_scrollbar.grid(row=0, column=1, sticky="ns")
+    app.left_v_scrollbar.grid(row=0, column=1, sticky="ns")
+    app.left_h_scrollbar.grid(row=1, column=0, sticky="ew")
 
     app.left_container = ttk.Frame(app.left_canvas)
     app.left_canvas_window = app.left_canvas.create_window((0, 0), window=app.left_container, anchor="nw")
@@ -568,17 +576,54 @@ def build_application_shell_ui(app) -> None:
     def _sync_scroll_region(_event=None):
         app.left_canvas.configure(scrollregion=app.left_canvas.bbox("all"))
 
-    def _sync_inner_width(event):
-        app.left_canvas.itemconfigure(app.left_canvas_window, width=event.width)
+    def _on_canvas_configure(event):
+        content_width = app.left_container.winfo_reqwidth()
+        new_width = max(event.width, content_width)
+        app.left_canvas.itemconfigure(app.left_canvas_window, width=new_width)
 
     app.left_container.bind("<Configure>", _sync_scroll_region)
-    app.left_canvas.bind("<Configure>", _sync_inner_width)
+    app.left_canvas.bind("<Configure>", _on_canvas_configure)
 
     def _on_mousewheel(event):
-        if app.left_canvas.winfo_exists():
-            app.left_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        if not app.left_canvas.winfo_exists():
+            return
+        delta = event.delta
+        if abs(delta) > 10:
+            delta = delta // 120
+        app.left_canvas.yview_scroll(-delta, "units")
 
-    app.left_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    def _on_shift_mousewheel(event):
+        if not app.left_canvas.winfo_exists():
+            return
+        delta = event.delta
+        if abs(delta) > 10:
+            delta = delta // 120
+        app.left_canvas.xview_scroll(-delta, "units")
+
+    def _on_linux_btn4(event):
+        if app.left_canvas.winfo_exists():
+            app.left_canvas.yview_scroll(-3, "units")
+
+    def _on_linux_btn5(event):
+        if app.left_canvas.winfo_exists():
+            app.left_canvas.yview_scroll(3, "units")
+
+    def _bind_mousewheel(_event=None):
+        app.left_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        app.left_canvas.bind_all("<Shift-MouseWheel>", _on_shift_mousewheel)
+        app.left_canvas.bind_all("<Button-4>", _on_linux_btn4)
+        app.left_canvas.bind_all("<Button-5>", _on_linux_btn5)
+
+    def _unbind_mousewheel(_event=None):
+        app.left_canvas.unbind_all("<MouseWheel>")
+        app.left_canvas.unbind_all("<Shift-MouseWheel>")
+        app.left_canvas.unbind_all("<Button-4>")
+        app.left_canvas.unbind_all("<Button-5>")
+
+    app.left_pane.bind("<Enter>", _bind_mousewheel)
+    app.left_pane.bind("<Leave>", _unbind_mousewheel)
+
+    app.scrollregion_refresh = _sync_scroll_region
 
     def _set_initial_sash():
         try:
@@ -611,15 +656,19 @@ def build_left_pane_ui(app, parent) -> None:
     ).grid(row=1, column=0, columnspan=2, padx=5, pady=(0, 5), sticky="w")
 
     content_frame = ttk.Frame(parent)
+    content_frame.columnconfigure(0, weight=1)
+    content_frame.rowconfigure(0, weight=1)
     content_frame.pack(fill="both", expand=True, padx=5, pady=5)
-    content_frame.columnconfigure(0, weight=MAIN_SETTINGS_WEIGHT)
-    content_frame.columnconfigure(1, weight=GAS_SETTINGS_WEIGHT)
     app.left_content_frame = content_frame
 
-    app.main_settings_frame = ttk.Frame(content_frame)
-    app.main_settings_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
-    app.create_main_settings(app.main_settings_frame)
+    app.left_content_paned = ttk.PanedWindow(content_frame, orient=tk.HORIZONTAL)
+    app.left_content_paned.grid(row=0, column=0, sticky="nsew")
 
-    app.gas_settings_frame = ttk.LabelFrame(content_frame, text="Gaz Kompozisyonu")
-    app.gas_settings_frame.grid(row=0, column=1, sticky="nsew")
+    app.main_settings_frame = ttk.Frame(app.left_content_paned)
+    app.gas_settings_frame = ttk.LabelFrame(app.left_content_paned, text="Gaz Kompozisyonu")
+
+    app.left_content_paned.add(app.main_settings_frame, weight=MAIN_SETTINGS_WEIGHT)
+    app.left_content_paned.add(app.gas_settings_frame, weight=GAS_SETTINGS_WEIGHT)
+
+    app.create_main_settings(app.main_settings_frame)
     app.create_gas_settings(app.gas_settings_frame)

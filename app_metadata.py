@@ -2,12 +2,24 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.2"
+APP_VERSION = "v2.4.3"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
-RELEASE_DATE_DISPLAY = "13 Nisan 2026"
+RELEASE_DATE_DISPLAY = "2 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.3",
+        "2 Temmuz 2026",
+        [
+            "Blowdown Analizi sekmesine yatay ve dikey scrollbar eklendi; farkli cozunurluklerde kaydirma destegi saglandi.",
+            "Ana ayarlar ve gaz kompozisyonu arasina PanedWindow eklenerek kolonlar kullanici tarafindan boyutlandirabilir hale getirildi.",
+            "Mod degisikligi sonrasi scroll bolgesi otomatik guncellenerek Temel Girdiler altindaki input kutularinin gorunurlugu saglandi.",
+            "macOS trackpad ve Linux fare tekerleği uyumlulugu eklendi; Shift+faret tekerleği ile yatay kaydirma destegi saglandi.",
+            "GitHub guncelleme kontrolu draft ve prerelease surumlerini filtreleyecek sekilde iyilestirildi.",
+            "UI degisikliklerini kapsayan 7 yeni test eklendi.",
+        ],
+    ),
     (
         "v2.4.2",
         "13 Nisan 2026",

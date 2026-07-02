@@ -232,8 +232,8 @@ def test_build_left_pane_ui_smoke():
         app = DummyApp()
         build_left_pane_ui(app, parent)
         assert hasattr(app, "left_content_frame")
-        assert int(app.left_content_frame.grid_columnconfigure(0)["weight"]) == MAIN_SETTINGS_WEIGHT
-        assert int(app.left_content_frame.grid_columnconfigure(1)["weight"]) == GAS_SETTINGS_WEIGHT
+        assert hasattr(app, "left_content_paned")
+        assert isinstance(app.left_content_paned, ttk.PanedWindow)
         assert app.valve_type_combo.get() == "API 6D (Küresel/Blowdown)"
         assert hasattr(app, "main_settings_frame")
         assert hasattr(app, "gas_settings_frame")
@@ -255,6 +255,45 @@ def test_build_log_tab_ui_smoke():
         root.destroy()
 
 
+def test_build_application_shell_ui_has_horizontal_scrollbar():
+    app = _create_menu_app_or_skip()
+    try:
+        build_application_shell_ui(app)
+        assert hasattr(app, "left_h_scrollbar")
+        assert hasattr(app, "left_v_scrollbar")
+        assert app.left_h_scrollbar is not None
+        assert app.left_v_scrollbar is not None
+    finally:
+        app.destroy()
+
+
+def test_build_application_shell_ui_scrollregion_refresh():
+    app = _create_menu_app_or_skip()
+    try:
+        build_application_shell_ui(app)
+        assert hasattr(app, "scrollregion_refresh")
+        assert callable(app.scrollregion_refresh)
+    finally:
+        app.destroy()
+
+
+def test_build_left_pane_ui_paned_window():
+    root = _create_root_or_skip()
+    try:
+        parent = ttk.Frame(root)
+        parent.pack()
+        app = DummyApp()
+        build_left_pane_ui(app, parent)
+        assert hasattr(app, "left_content_paned")
+        assert isinstance(app.left_content_paned, ttk.PanedWindow)
+        panes = app.left_content_paned.panes()
+        assert len(panes) == 2
+        assert str(app.main_settings_frame) in panes
+        assert str(app.gas_settings_frame) in panes
+    finally:
+        root.destroy()
+
+
 if __name__ == "__main__":
     test_build_main_settings_ui_smoke()
     test_build_api2000_pane_ui_smoke()
@@ -264,4 +303,7 @@ if __name__ == "__main__":
     test_build_application_shell_ui_smoke()
     test_build_left_pane_ui_smoke()
     test_build_log_tab_ui_smoke()
+    test_build_application_shell_ui_has_horizontal_scrollbar()
+    test_build_application_shell_ui_scrollregion_refresh()
+    test_build_left_pane_ui_paned_window()
     print("TEST COMPLETED")

@@ -17,6 +17,9 @@ from ui_state_actions import apply_mode_change, configure_psv_service_fields
 
 
 class DummyApp:
+    def after(self, ms, func):
+        func()
+
     def on_mode_change(self, event=None):
         return None
 
@@ -102,7 +105,37 @@ def test_apply_mode_change_switches_to_psv():
         root.destroy()
 
 
+def test_apply_mode_change_triggers_scrollregion_refresh():
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        frame = ttk.Frame(root)
+        frame.pack()
+        app = DummyApp()
+        build_left_pane_ui(app, frame)
+        
+        app.left_canvas = tk.Canvas(root)
+        
+        refresh_called = []
+        app.scrollregion_refresh = lambda: refresh_called.append(True)
+        
+        app.mode_combo.set("Zamana Bağlı Basınç Düşürme (Blowdown)")
+        apply_mode_change(
+            app,
+            app_version="v2.3.1",
+            native_engine_name="Yerel Çözücü",
+            state_builder=build_mode_ui_state,
+            service_field_config_builder=build_psv_service_field_config,
+            placeholder_callback=app._show_graph_placeholder,
+        )
+        
+        assert len(refresh_called) > 0, "scrollregion_refresh should be scheduled after mode change"
+    finally:
+        root.destroy()
+
+
 if __name__ == "__main__":
     test_configure_psv_service_fields_liquid()
     test_apply_mode_change_switches_to_psv()
+    test_apply_mode_change_triggers_scrollregion_refresh()
     print("TEST COMPLETED")
