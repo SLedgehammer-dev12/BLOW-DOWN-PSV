@@ -362,6 +362,11 @@ class Application(tk.Tk):
         self.last_psv_report_bundle = None
         self.vendor_catalog_path = None
         self.abort_flag = threading.Event()
+
+        from ui_themes import THEME_PERFORMANCE
+        self.theme_var = tk.StringVar(value=THEME_PERFORMANCE)
+        self.current_theme = THEME_PERFORMANCE
+
         self.create_widgets()
         self.setup_logging()
         
@@ -380,6 +385,14 @@ class Application(tk.Tk):
         self.create_right_pane(self.right_pane)
         self.create_left_pane(self.left_container)
         self.create_api2000_pane(self.api2000_tab)
+
+    def apply_theme(self, theme_name=None):
+        from ui_themes import apply_theme as _apply_theme, THEME_PERFORMANCE
+        theme = theme_name or self.theme_var.get()
+        self.theme_var.set(theme)
+        _apply_theme(self, theme)
+        if theme != THEME_PERFORMANCE and hasattr(self, "scrollregion_refresh"):
+            self.after(50, self.scrollregion_refresh)
 
     def check_for_updates(self, manual=False):
         return start_update_check_async(

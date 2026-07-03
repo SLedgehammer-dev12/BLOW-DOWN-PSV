@@ -138,6 +138,13 @@ def _register_entry_field(
         combo.set(default_unit)
         app.unit_combos[field_key] = combo
 
+    from ui_tooltips import FIELD_HELP_TEXT, ToolTip
+    if field_key in FIELD_HELP_TEXT:
+        info_lbl = ttk.Label(entry_frame, text="\u24D8", cursor="hand2", foreground="#7f8c8d",
+                             font=("Segoe UI Symbol", 9) if __import__("platform").system() == "Windows" else ("Arial", 9))
+        info_lbl.grid(row=0, column=2, padx=(4, 0))
+        ToolTip(info_lbl, FIELD_HELP_TEXT[field_key])
+
 
 def build_main_settings_ui(
     app,
@@ -452,6 +459,28 @@ def build_menu_bar(app) -> None:
     vendormenu.add_command(label="Varsayılan Kataloğa Dön", command=app.reset_vendor_catalog)
     vendormenu.add_command(label="Aktif Katalog Özeti", command=app.show_vendor_catalog_summary)
     menubar.add_cascade(label="Vendor", menu=vendormenu)
+
+    gorunum_menu = tk.Menu(menubar, tearoff=0)
+    gorunum_menu.add_radiobutton(
+        label="Modern Açık",
+        variable=app.theme_var,
+        value="Modern Acik",
+        command=lambda: app.apply_theme("Modern Acik"),
+    )
+    gorunum_menu.add_radiobutton(
+        label="Modern Koyu",
+        variable=app.theme_var,
+        value="Modern Koyu",
+        command=lambda: app.apply_theme("Modern Koyu"),
+    )
+    gorunum_menu.add_separator()
+    gorunum_menu.add_radiobutton(
+        label="Performans (Varsayılan)",
+        variable=app.theme_var,
+        value="Performans (Varsayilan)",
+        command=lambda: app.apply_theme("Performans (Varsayilan)"),
+    )
+    menubar.add_cascade(label="Görünüm", menu=gorunum_menu)
 
     helpmenu = tk.Menu(menubar, tearoff=0)
     helpmenu.add_command(label="Hakkinda / Guncelleme Tarihcesi", command=app.show_about)

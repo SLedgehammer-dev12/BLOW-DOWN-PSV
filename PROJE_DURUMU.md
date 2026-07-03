@@ -64,6 +64,13 @@ Son guncelleme: 2 Temmuz 2026
 
 ## Son tamamlanan iyilestirmeler
 
+### v2.4.5 (2 Temmuz 2026)
+
+- Modern arayuz temalari: Modern Acik, Modern Koyu, Performans (Gorunum menusu)
+- Input alanlari icin bilgilendirici tooltip (ⓘ ikonu)
+- Platforma ozel font tespiti
+- ttk.Style tema yapilandirmasi
+
 ### v2.4.4 (2 Temmuz 2026)
 
 - GitHub Actions CI/CD eklendi (tag push → otomatik Windows .exe build + release)

@@ -1,8 +1,8 @@
 # Blowdown Studio - Gelisim Ozeti
 
 ## Mevcut durum
+0. Aktif surum `v2.4.5`.
 
-0. Aktif surum `v2.4.4`.
 1. Aktif uygulama adi `Blowdown Studio` olarak standardize edildi.
 2. Aktif giris dosyasi `blowdown_studio.py` oldu.
 3. `Blow Down PSV V3.py` yalniz geriye donuk uyumluluk baslaticisi olarak birakildi.
@@ -12,6 +12,7 @@
 7. PSV tarafinda `actual area`, `certified gas Kd` ve `Kb curve` iceren vendor veri modeli eklendi.
 8. Varsayilan PSV katalogu resmi screening verileri yukluyor.
 9. Vendor modeli API 526 harfleri disindaki vendor size etiketlerini de tasiyabiliyor.
+10. Arayuzde modern tema secenegi ve girdi alanlari icin bilgilendirici tooltip'ler eklendi.
 
 ## Aktif teknik dosyalar
 
@@ -22,6 +23,13 @@
 - Vendor kaynak notlari: `vendor_data/README.md`
 - HydDown adaptoru: `hyddown_adapter.py`
 - Paketleme: `build.spec` (dinamik versiyon okuma)
+
+## v2.4.5
+
+- Modern arayuz temalari eklendi (Modern Acik, Modern Koyu, Performans). Gorunum menusunden anlik gecis yapilabilir.
+- Her girdi alani icin bilgilendirici tooltip (ⓘ ikonu) eklendi — fareyle uzerine gelindiginde muhendislik aciklamasi gosterilir.
+- Platforma ozel sistem font tespiti (Segoe UI / SF Pro / Sans).
+- ttk.Style ile tema-aware widget konfigurasyonu.
 
 ## v2.4.4
 

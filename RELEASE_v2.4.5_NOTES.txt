@@ -1,0 +1,19 @@
+Blowdown Studio v2.4.5
+
+Modern Interface & Tooltips:
+- Three visual themes: Modern Light, Modern Dark, and Performance (default)
+- Switch themes via new "Gorunum" menu
+- Tooltip (ⓘ) icons on every input field — hover or click for engineering help text
+- Platform-specific font detection (Segoe UI / SF Pro / Sans)
+- ttk.Style theme-aware widget configuration
+
+Previous Highlights:
+- GitHub Actions CI/CD for automatic Windows EXE builds
+- DCMR Rijnmond analytical blowdown engine
+- Critical mass-floor bug fix
+- API 521 fire case heat input fix
+- Horizontal & vertical scrollbars
+- Resizable columns (PanedWindow)
+- 38+ tests passing across 12+ test files
+
+Full changelog: CHANGELOG.md

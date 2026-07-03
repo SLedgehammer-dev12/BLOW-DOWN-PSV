@@ -2,12 +2,22 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.4"
+APP_VERSION = "v2.4.5"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
 RELEASE_DATE_DISPLAY = "2 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.5",
+        "2 Temmuz 2026",
+        [
+            "Modern arayuz temalari eklendi: Modern Acik, Modern Koyu ve Performans (varsayilan) modlari.",
+            "Her girdi alani icin bilgilendirici tooltip (ⓘ ikonu) eklendi; fareyle uzerine gelindiginde muhendislik aciklamasi gosterilir.",
+            "Gorunum menusu eklendi; tema gecisi anlik olarak uygulanir.",
+            "UI widget stil konfigurasyonu eklendi (ttk.Style, tema paletleri, sistem font tespiti).",
+        ],
+    ),
     (
         "v2.4.4",
         "2 Temmuz 2026",
