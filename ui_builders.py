@@ -20,10 +20,17 @@ from api2000_ui_actions import (
 from ui_mode_logic import (
     FIELD_BACKPRESSURE,
     FIELD_BACKPRESSURE_KB,
+    FIELD_BUTTERFLY_VALVE_COUNT,
+    FIELD_CHECK_VALVE_COUNT,
+    FIELD_ELBOW_COUNT,
+    FIELD_GLOBE_VALVE_COUNT,
     FIELD_INNER_DIAMETER,
     FIELD_LENGTH,
     FIELD_MAWP,
     FIELD_OVERPRESSURE,
+    FIELD_PIPE_DIAMETER,
+    FIELD_PIPE_LENGTH,
+    FIELD_PIPE_ROUGHNESS,
     FIELD_PSV_KD,
     FIELD_REQUIRED_BODY_MATERIAL,
     FIELD_REQUIRED_CODE_STAMP,
@@ -34,6 +41,7 @@ from ui_mode_logic import (
     FIELD_REQUIRED_TRIM_MATERIAL,
     FIELD_START_PRESSURE,
     FIELD_START_TEMPERATURE,
+    FIELD_TEE_COUNT,
     FIELD_TARGET_PRESSURE,
     FIELD_TARGET_TIME,
     FIELD_THICKNESS,
@@ -105,6 +113,14 @@ def _display_label(field_key: str) -> str:
         FIELD_REQUIRED_TRIM_MATERIAL: "İstenen Trim Malzemesi",
         FIELD_REQUIRED_INLET_CLASS: "İstenen Giriş Rating Class",
         FIELD_REQUIRED_OUTLET_CLASS: "İstenen Çıkış Rating Class",
+        FIELD_PIPE_LENGTH: "Boru Uzunluğu",
+        FIELD_PIPE_DIAMETER: "Boru İç Çapı",
+        FIELD_ELBOW_COUNT: "Dirsek Sayısı (90°)",
+        FIELD_TEE_COUNT: "Te Sayısı",
+        FIELD_GLOBE_VALVE_COUNT: "Globe Vana Sayısı",
+        FIELD_CHECK_VALVE_COUNT: "Check Vana Sayısı",
+        FIELD_BUTTERFLY_VALVE_COUNT: "Kelebek Vana Sayısı",
+        FIELD_PIPE_ROUGHNESS: "Pürüzlülük",
     }
     return label_map.get(field_key, field_key)
 
@@ -117,6 +133,13 @@ def _default_field_value(field_key: str) -> str:
         FIELD_BACKPRESSURE_KB: "1.0",
         FIELD_BACKPRESSURE: "0",
         FIELD_OVERPRESSURE: "10",
+        FIELD_PIPE_LENGTH: "5.0",
+        FIELD_ELBOW_COUNT: "2",
+        FIELD_TEE_COUNT: "0",
+        FIELD_GLOBE_VALVE_COUNT: "0",
+        FIELD_CHECK_VALVE_COUNT: "1",
+        FIELD_BUTTERFLY_VALVE_COUNT: "0",
+        FIELD_PIPE_ROUGHNESS: "0.045",
     }
     return defaults.get(field_key, "")
 
@@ -247,8 +270,34 @@ def build_main_settings_ui(
             column_offset=column_offset,
         )
 
+    piping_frame = ttk.LabelFrame(frame, text="Deşarj Boru Hattı (API 521)")
+    piping_frame.grid(row=3, column=0, sticky="ew", padx=6, pady=6)
+    piping_frame.columnconfigure(1, weight=1)
+    piping_frame.columnconfigure(3, weight=1)
+
+    piping_fields = [
+        (FIELD_PIPE_LENGTH, "m", ["m", "mm", "ft"], 0, 0),
+        (FIELD_PIPE_DIAMETER, "mm", ["mm", "m", "in", "ft"], 0, 2),
+        (FIELD_ELBOW_COUNT, "Adet", ["Adet"], 1, 0),
+        (FIELD_TEE_COUNT, "Adet", ["Adet"], 1, 2),
+        (FIELD_GLOBE_VALVE_COUNT, "Adet", ["Adet"], 2, 0),
+        (FIELD_CHECK_VALVE_COUNT, "Adet", ["Adet"], 2, 2),
+        (FIELD_BUTTERFLY_VALVE_COUNT, "Adet", ["Adet"], 3, 0),
+        (FIELD_PIPE_ROUGHNESS, "mm", ["mm", "m", "in"], 3, 2),
+    ]
+    for field_key, default_unit, units, row_index, column_offset in piping_fields:
+        _register_entry_field(
+            app,
+            piping_frame,
+            row_index,
+            field_key,
+            default_unit=default_unit,
+            units=units,
+            column_offset=column_offset,
+        )
+
     app.engine_options_frame = ttk.LabelFrame(frame, text="Çözüm Motoru")
-    app.engine_options_frame.grid(row=3, column=0, sticky="ew", padx=6, pady=6)
+    app.engine_options_frame.grid(row=4, column=0, sticky="ew", padx=6, pady=6)
     app.engine_options_frame.columnconfigure(1, weight=1)
     ttk.Label(app.engine_options_frame, text="Blowdown Motoru:").grid(row=0, column=0, padx=6, pady=5, sticky="w")
     app.engine_combo = ttk.Combobox(
@@ -266,7 +315,7 @@ def build_main_settings_ui(
     app.segment_count_entry.insert(0, "8")
 
     app.fire_case_frame = ttk.LabelFrame(frame, text="API 521 Fire Case")
-    app.fire_case_frame.grid(row=4, column=0, sticky="ew", padx=6, pady=6)
+    app.fire_case_frame.grid(row=5, column=0, sticky="ew", padx=6, pady=6)
     app.fire_case_frame.columnconfigure(1, weight=1)
     app.fire_case_var = tk.BooleanVar(value=False)
     app.fire_case_check = ttk.Checkbutton(
@@ -290,7 +339,7 @@ def build_main_settings_ui(
     app.fire_case_factor_entry.insert(0, "1.0")
 
     app.psv_options_frame = ttk.LabelFrame(frame, text="PSV Ön Boyutlandırma")
-    app.psv_options_frame.grid(row=5, column=0, sticky="ew", padx=6, pady=6)
+    app.psv_options_frame.grid(row=6, column=0, sticky="ew", padx=6, pady=6)
     app.psv_options_frame.columnconfigure(1, weight=1)
     app.psv_options_frame.columnconfigure(3, weight=1)
 

@@ -2,12 +2,22 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.6"
+APP_VERSION = "v2.4.7"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
-RELEASE_DATE_DISPLAY = "3 Temmuz 2026"
+RELEASE_DATE_DISPLAY = "4 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.7",
+        "4 Temmuz 2026",
+        [
+            "Deşarj Boru Hattı (API 521) girdi alanlari eklendi: boru uzunlugu, ic cap, dirsek/te/vana sayilari, puruzluluk.",
+            "Kullanici boru hatti parametrelerini dogrudan girebilir; bos birakilan alanlar varsayilan degerleri kullanir.",
+            "Raporda puruzluluk ve fittings detaylari ayrica gosterilir.",
+            "HydDown numpy.testing import hatasi giderildi (build.spec).",
+        ],
+    ),
     (
         "v2.4.6",
         "3 Temmuz 2026",

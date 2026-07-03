@@ -6,11 +6,19 @@ import tkinter as tk
 from ui_mode_logic import (
     FIELD_BACKPRESSURE,
     FIELD_BACKPRESSURE_KB,
+    FIELD_BUTTERFLY_VALVE_COUNT,
+    FIELD_CHECK_VALVE_COUNT,
+    FIELD_ELBOW_COUNT,
+    FIELD_GLOBE_VALVE_COUNT,
     FIELD_INNER_DIAMETER,
     FIELD_LENGTH,
     FIELD_MAWP,
+    FIELD_PIPE_DIAMETER,
+    FIELD_PIPE_LENGTH,
+    FIELD_PIPE_ROUGHNESS,
     FIELD_START_PRESSURE,
     FIELD_START_TEMPERATURE,
+    FIELD_TEE_COUNT,
     FIELD_TARGET_PRESSURE,
     FIELD_TARGET_TIME,
     FIELD_THICKNESS,
@@ -226,6 +234,16 @@ def collect_blowdown_inputs(
     inputs["Kb"] = get_val(FIELD_BACKPRESSURE_KB) or 1.0
     if inputs["Cd_valve"] <= 0.0 or inputs["Cd_valve"] > 1.0:
         raise ValueError("Discharge katsayısı (Cd) 0 ile 1 arasında olmalıdır.")
+
+    inputs["pipe_length_m"] = get_val(FIELD_PIPE_LENGTH) or 5.0
+    pipe_dia = get_val(FIELD_PIPE_DIAMETER)
+    inputs["pipe_diameter_mm"] = pipe_dia if pipe_dia is not None else None
+    inputs["elbow_count"] = int(get_val(FIELD_ELBOW_COUNT) or 2)
+    inputs["tee_count"] = int(get_val(FIELD_TEE_COUNT) or 0)
+    inputs["globe_valve_count"] = int(get_val(FIELD_GLOBE_VALVE_COUNT) or 0)
+    inputs["check_valve_count"] = int(get_val(FIELD_CHECK_VALVE_COUNT) or 1)
+    inputs["butterfly_valve_count"] = int(get_val(FIELD_BUTTERFLY_VALVE_COUNT) or 0)
+    inputs["roughness_mm"] = get_val(FIELD_PIPE_ROUGHNESS) or 0.045
 
     if inputs["solver_engine"] == "HydDown" and any(key not in inputs for key in ("D_in_m", "L_m", "t_m")):
         raise ValueError("HydDown motoru için geometrik giriş zorunludur. İç çap, uzunluk ve et kalınlığı girilmelidir.")

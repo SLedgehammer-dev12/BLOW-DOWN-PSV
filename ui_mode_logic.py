@@ -25,6 +25,14 @@ FIELD_REQUIRED_BODY_MATERIAL = "Required Body Material"
 FIELD_REQUIRED_TRIM_MATERIAL = "Required Trim Material"
 FIELD_REQUIRED_INLET_CLASS = "Required Inlet Rating Class"
 FIELD_REQUIRED_OUTLET_CLASS = "Required Outlet Rating Class"
+FIELD_PIPE_LENGTH = "Discharge Pipe Length (m)"
+FIELD_PIPE_DIAMETER = "Discharge Pipe Inner Diameter (mm)"
+FIELD_ELBOW_COUNT = "Elbow Count (90 deg)"
+FIELD_TEE_COUNT = "Tee Count"
+FIELD_GLOBE_VALVE_COUNT = "Globe Valve Count"
+FIELD_CHECK_VALVE_COUNT = "Check Valve Count"
+FIELD_BUTTERFLY_VALVE_COUNT = "Butterfly Valve Count"
+FIELD_PIPE_ROUGHNESS = "Pipe Roughness (mm)"
 
 
 @dataclass(frozen=True)
@@ -120,6 +128,14 @@ def build_mode_ui_state(*, mode: str, fire_case_enabled: bool, engine_name: str,
             FIELD_VALVE_CD,
             FIELD_BACKPRESSURE,
             FIELD_BACKPRESSURE_KB,
+            FIELD_PIPE_LENGTH,
+            FIELD_PIPE_DIAMETER,
+            FIELD_ELBOW_COUNT,
+            FIELD_TEE_COUNT,
+            FIELD_GLOBE_VALVE_COUNT,
+            FIELD_CHECK_VALVE_COUNT,
+            FIELD_BUTTERFLY_VALVE_COUNT,
+            FIELD_PIPE_ROUGHNESS,
         ]
         if fire_case_enabled:
             visible_fields.append(FIELD_MAWP)

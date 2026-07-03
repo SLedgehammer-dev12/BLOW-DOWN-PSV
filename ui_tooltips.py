@@ -6,14 +6,22 @@ from tkinter import ttk
 from ui_mode_logic import (
     FIELD_BACKPRESSURE,
     FIELD_BACKPRESSURE_KB,
+    FIELD_BUTTERFLY_VALVE_COUNT,
+    FIELD_CHECK_VALVE_COUNT,
+    FIELD_ELBOW_COUNT,
+    FIELD_GLOBE_VALVE_COUNT,
     FIELD_INNER_DIAMETER,
     FIELD_LENGTH,
     FIELD_MAWP,
     FIELD_OVERPRESSURE,
+    FIELD_PIPE_DIAMETER,
+    FIELD_PIPE_LENGTH,
+    FIELD_PIPE_ROUGHNESS,
     FIELD_PSV_KD,
     FIELD_REQUIRED_FLOW,
     FIELD_START_PRESSURE,
     FIELD_START_TEMPERATURE,
+    FIELD_TEE_COUNT,
     FIELD_TARGET_PRESSURE,
     FIELD_TARGET_TIME,
     FIELD_THICKNESS,
@@ -109,6 +117,41 @@ FIELD_HELP_TEXT: dict[str, str] = {
         "Tahliye edilmesi gereken kutlesel / hacimsel debi.\n"
         "PSV boyutlandirmasi icin zorunlu giris.\n"
         "Desteklenen birimler: kg/h, lb/h, Nm3/h, SCFM, MMSCFD"
+    ),
+    FIELD_PIPE_LENGTH: (
+        "Tahliye hattinin toplam uzunlugu.\n"
+        "API 521 discharge piping kayip hesaplarinda kullanilir.\n"
+        "Varsayilan: 5.0 m."
+    ),
+    FIELD_PIPE_DIAMETER: (
+        "Tahliye borusu ic capi.\n"
+        "Bos birakilirsa vana outlet capindan otomatik alinir."
+    ),
+    FIELD_ELBOW_COUNT: (
+        "Tahliye hattindaki 90° dirsek sayisi.\n"
+        "Her bir dirsek K = 0.30 kayip faktoru ekler."
+    ),
+    FIELD_TEE_COUNT: (
+        "Tahliye hattindaki duz gecisli te sayisi.\n"
+        "Her bir te K = 0.20 kayip faktoru ekler."
+    ),
+    FIELD_GLOBE_VALVE_COUNT: (
+        "Tahliye hattindaki globe vana sayisi.\n"
+        "Her bir globe vana K = 10.0 kayip faktoru ekler."
+    ),
+    FIELD_CHECK_VALVE_COUNT: (
+        "Tahliye hattindaki check vana (cek valf) sayisi.\n"
+        "Her bir check vana K = 5.0 kayip faktoru ekler.\n"
+        "Varsayilan: 1 adet."
+    ),
+    FIELD_BUTTERFLY_VALVE_COUNT: (
+        "Tahliye hattindaki kelebek vana sayisi.\n"
+        "Her bir kelebek vana K = 2.0 kayip faktoru ekler."
+    ),
+    FIELD_PIPE_ROUGHNESS: (
+        "Boru ic yuzey puruzlulugu (mm).\n"
+        "Ticari celik borusu icin varsayilan: 0.045 mm.\n"
+        "Paslanmaz celik: 0.015 mm, yeni celik: 0.045 mm."
     ),
 }
 

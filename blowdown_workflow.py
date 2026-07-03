@@ -177,6 +177,8 @@ def build_blowdown_report(
     screening_inputs.setdefault("globe_valve_count", 0)
     screening_inputs.setdefault("check_valve_count", 0)
     screening_inputs.setdefault("butterfly_valve_count", 0)
+    screening_inputs.setdefault("roughness_mm", 0.045)
+    pipe_d_mm = screening_inputs["pipe_diameter_mm"]
 
     discharge_summary_lines: list[str] = []
     acoustic_summary_lines: list[str] = []
@@ -211,6 +213,7 @@ def build_blowdown_report(
             globe_valve_count=screening_inputs["globe_valve_count"],
             check_valve_count=screening_inputs["check_valve_count"],
             butterfly_valve_count=screening_inputs["butterfly_valve_count"],
+            roughness_mm=screening_inputs.get("roughness_mm", 0.045),
             mass_flow_kg_s=peak_mdot_kg_s,
             gas_density_kg_m3=initial_density_kg_m3,
             gas_viscosity_pa_s=gas_viscosity_pa_s,
@@ -244,6 +247,7 @@ def build_blowdown_report(
             "",
             "[Ek Screening] Discharge Piping",
             f"Assumed discharge line         : {screening_inputs['pipe_length_m']:.1f} m, DN{pipe_d_mm:.0f}, {screening_inputs['elbow_count']} elbow",
+            f"Pipe roughness                : {screening_inputs.get('roughness_mm', 0.045):.3f} mm",
             f"Reynolds sayisi               : {piping_loss['reynolds_number']:.3e}",
             f"Darcy friction factor         : {piping_loss['friction_factor']:.4f}",
             f"Toplam K                      : {piping_loss['total_K']:.3f}",

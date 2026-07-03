@@ -59,7 +59,6 @@ excludes = [
     "nose",
     "hypothesis",
     "numpy.tests",
-    "numpy.testing",
     "numpy.array_api.tests",
     "pandas.tests",
     "scipy.tests",
