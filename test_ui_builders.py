@@ -61,6 +61,10 @@ class MenuApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.withdraw()
+        self.theme_var = tk.StringVar(value="Performans (Varsayilan)")
+
+    def apply_theme(self, theme_name=None):
+        pass
 
     def load_settings(self):
         return None
@@ -93,6 +97,9 @@ class MenuApp(tk.Tk):
         return None
 
     def show_about(self):
+        return None
+
+    def show_unit_preferences(self):
         return None
 
     def check_for_updates(self, manual=False):

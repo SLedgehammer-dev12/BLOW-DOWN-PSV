@@ -69,9 +69,12 @@ FIELD_HELP_TEXT: dict[str, str] = {
     ),
     FIELD_VALVE_CD: (
         "Blowdown desarj katsayisi (Cd, 0...1 arasi).\n"
-        "Tipik degerler:\n"
-        "  0.975 - Tam acik kuresel vana (API 6D)\n"
-        "  0.62  - Keskin kenarli orifis"
+        "Vana tipine gore on-tanimli degerler:\n"
+        "  Kuresel: 0.975 (tam gecisli)\n"
+        "  Gate:    0.85  (surgulu, tam acik)\n"
+        "  Plug:    0.80  (tapa, tam acik)\n"
+        "  Globe:   0.75  (kisitlamali gecis)\n"
+        "Manuel olarak degistirilebilir."
     ),
     FIELD_PSV_KD: (
         "PSV sertifikali desarj katsayisi (Kd).\n"

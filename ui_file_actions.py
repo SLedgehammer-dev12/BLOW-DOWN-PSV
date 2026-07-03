@@ -24,6 +24,7 @@ def build_settings_payload(app) -> dict:
         "entries": {key: widget.get() for key, widget in app.entries.items()},
         "units": {key: widget.get() for key, widget in app.unit_combos.items()},
         "composition": dict(app.composition),
+        "unit_prefs": dict(getattr(app, "unit_prefs", {})),
     }
 
 
@@ -73,6 +74,10 @@ def apply_settings_payload(app, data: dict, *, default_engine_name: str) -> None
 
     app.composition = data.get("composition", {})
     app.update_composition_display()
+
+    if "unit_prefs" in data and hasattr(app, "unit_prefs"):
+        app.unit_prefs.update(data["unit_prefs"])
+
     app.on_mode_change()
 
 

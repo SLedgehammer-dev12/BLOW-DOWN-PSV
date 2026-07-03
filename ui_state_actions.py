@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui_mode_logic import FIELD_VALVE_CD
+
 
 def _candidate_field_keys(field_name: str) -> list[str]:
     candidates = [field_name]
@@ -96,12 +98,20 @@ def apply_mode_change(
     if hasattr(app, "valve_type_combo"):
         if state.placeholder_mode == "PSV":
             app.valve_type_combo.configure(state="readonly")
+            app.valve_type_combo.configure(values=["API 526 (PSV/PRV)"])
             app.valve_type_combo.set("API 526 (PSV/PRV)")
             app.valve_type_combo.configure(state="disabled")
         else:
+            from ui_builders import BLOWDOWN_VALVE_TYPES, VALVE_CD_DEFAULTS
             app.valve_type_combo.configure(state="readonly")
-            app.valve_type_combo.set("API 6D (Küresel/Blowdown)")
-            app.valve_type_combo.configure(state="disabled")
+            app.valve_type_combo.configure(values=BLOWDOWN_VALVE_TYPES)
+            if app.valve_type_combo.get() not in BLOWDOWN_VALVE_TYPES:
+                app.valve_type_combo.set("API 6D (Küresel/Blowdown)")
+            vt = app.valve_type_combo.get()
+            cd_default = VALVE_CD_DEFAULTS.get(vt, "0.975")
+            cd_resolved = _resolve_field_key(app, FIELD_VALVE_CD, "entries")
+            app.entries[cd_resolved].delete(0, "end")
+            app.entries[cd_resolved].insert(0, cd_default)
 
     if state.show_sys_type:
         app.sys_type_combo.grid()

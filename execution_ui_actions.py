@@ -65,6 +65,8 @@ def run_blowdown_ui_flow_with_feedback(
     finalize_run_button_fn,
     finalize_abort_button_fn,
     store_report_bundle_fn=lambda bundle: None,
+    unit_prefs=None,
+    converter=None,
 ):
     try:
         logger.info("Simülasyon motoru başlatılıyor...")
@@ -79,6 +81,8 @@ def run_blowdown_ui_flow_with_feedback(
             select_standard_valve_fn=select_standard_valve_fn,
             run_engine_fn=run_engine_fn,
             build_report_fn=build_report_fn,
+            unit_prefs=unit_prefs,
+            converter=converter,
         )
 
         if result.status == "aborted":

@@ -367,6 +367,9 @@ class Application(tk.Tk):
         self.theme_var = tk.StringVar(value=THEME_PERFORMANCE)
         self.current_theme = THEME_PERFORMANCE
 
+        from unit_preferences import DEFAULT_UNIT_PREFS
+        self.unit_prefs = dict(DEFAULT_UNIT_PREFS)
+
         self.create_widgets()
         self.setup_logging()
         
@@ -393,6 +396,49 @@ class Application(tk.Tk):
         _apply_theme(self, theme)
         if theme != THEME_PERFORMANCE and hasattr(self, "scrollregion_refresh"):
             self.after(50, self.scrollregion_refresh)
+
+    def show_unit_preferences(self):
+        from unit_preferences import VALID_UNITS, UNIT_LABELS
+        dialog = tk.Toplevel(self)
+        dialog.title("Birim Tercihleri")
+        dialog.geometry("440x420")
+        dialog.resizable(False, False)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        main_frame = ttk.Frame(dialog, padding=15)
+        main_frame.pack(fill="both", expand=True)
+
+        combo_vars = {}
+        row = 0
+        for key in DEFAULT_UNIT_PREFS:
+            ttk.Label(main_frame, text=f"{UNIT_LABELS.get(key, key)}:").grid(row=row, column=0, sticky="w", pady=4)
+            var = tk.StringVar(value=self.unit_prefs.get(key, DEFAULT_UNIT_PREFS[key]))
+            combo = ttk.Combobox(main_frame, textvariable=var, values=VALID_UNITS.get(key, [DEFAULT_UNIT_PREFS[key]]),
+                                 state="readonly", width=14)
+            combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=4)
+            combo_vars[key] = var
+            row += 1
+
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.grid(row=row, column=0, columnspan=2, pady=(15, 0), sticky="ew")
+        btn_frame.columnconfigure(0, weight=1)
+        btn_frame.columnconfigure(1, weight=1)
+        btn_frame.columnconfigure(2, weight=1)
+
+        def on_default():
+            for key, def_val in DEFAULT_UNIT_PREFS.items():
+                if key in combo_vars:
+                    combo_vars[key].set(def_val)
+
+        def on_ok():
+            for key, var in combo_vars.items():
+                self.unit_prefs[key] = var.get()
+            dialog.destroy()
+
+        ttk.Button(btn_frame, text="Varsayilana Don", command=on_default).grid(row=0, column=0, padx=3, sticky="ew")
+        ttk.Button(btn_frame, text="Iptal", command=dialog.destroy).grid(row=0, column=1, padx=3, sticky="ew")
+        ttk.Button(btn_frame, text="Tamam", command=on_ok).grid(row=0, column=2, padx=3, sticky="ew")
 
     def check_for_updates(self, manual=False):
         return start_update_check_async(
@@ -557,6 +603,8 @@ class Application(tk.Tk):
             select_standard_valve_fn=select_standard_valve,
             run_engine_fn=run_blowdown_engine,
             build_report_fn=build_blowdown_report,
+            unit_prefs=self.unit_prefs,
+            converter=self.converter,
             logger=logging,
             schedule_ui_fn=self.after,
             update_results_fn=self.update_results_text,
@@ -664,7 +712,7 @@ class Application(tk.Tk):
         return self.plot_blowdown_results(sim_df, inputs, valve)
 
     def plot_blowdown_results(self, sim_df, inputs, valve):
-        render_blowdown_plots(self.fig, sim_df, inputs, valve)
+        render_blowdown_plots(self.fig, sim_df, inputs, valve, unit_prefs=self.unit_prefs)
         draw_figure_on_tab(self.fig, self.canvas, self.notebook, self.graphs_tab)
 
     def plot_psv_graphs(self, sizing, inputs, selected_valve, valve_data, vendor_selection, vendor_evaluation, force_N_design, valve_count):

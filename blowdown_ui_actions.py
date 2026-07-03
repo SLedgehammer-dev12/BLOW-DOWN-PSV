@@ -17,8 +17,8 @@ class BlowdownExecutionResult:
 
 def execute_blowdown_ui_flow(
     *,
-    user_inputs: dict,
-    native_engine_name: str,
+    user_inputs,
+    native_engine_name,
     update_progress_ui,
     abort_flag,
     load_api526_data,
@@ -27,6 +27,8 @@ def execute_blowdown_ui_flow(
     select_standard_valve_fn,
     run_engine_fn,
     build_report_fn,
+    unit_prefs=None,
+    converter=None,
 ):
     update_progress_ui(10, 100, "Giriş parametreleri doğrulanıyor...")
     engine_name = user_inputs.get("solver_engine", native_engine_name)
@@ -63,7 +65,15 @@ def execute_blowdown_ui_flow(
         valve_type_description = "PSV/PRV Orifis"
     else:
         valve_type_label = f"{selected_valve.size_in} ({selected_valve.size_dn})"
-        valve_type_description = "Kuresel Vana (API 6D)"
+        valve_type_map = {
+            "API 6D (Küresel/Blowdown)": "Kuresel Vana (API 6D)",
+            "Globe Vana (Blowdown)": "Globe Vana",
+            "Gate Vana (Blowdown)": "Gate Vana",
+            "Plug Vana (Blowdown)": "Plug Vana",
+        }
+        valve_type_description = valve_type_map.get(
+            user_inputs["valve_type"], "Vana (API 6D)"
+        )
 
     workflow_result = build_report_fn(
         sim_df=sim_df,
@@ -75,6 +85,8 @@ def execute_blowdown_ui_flow(
         valve_count=valve_count,
         required_area_m2=required_area_m2,
         total_selected_area_m2=total_selected_area_m2,
+        unit_prefs=unit_prefs,
+        converter=converter,
     )
 
     return BlowdownExecutionResult(

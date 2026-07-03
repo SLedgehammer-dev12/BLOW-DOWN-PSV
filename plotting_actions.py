@@ -22,38 +22,45 @@ def draw_graph_placeholder(fig, mode_text: str) -> None:
     fig.tight_layout()
 
 
-def render_blowdown_plots(fig, sim_df, inputs, valve=None) -> None:
+def render_blowdown_plots(fig, sim_df, inputs, valve=None, unit_prefs=None) -> None:
     fig.clf()
     fig.set_size_inches(14, 10, forward=False)
     axes = fig.subplots(4, 3)
     engine_name = sim_df.attrs.get("engine", NATIVE_ENGINE_NAME)
     used_axes = {(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)}
 
+    uf = unit_prefs or {}
+    p_unit = uf.get("pressure", "barg")
+    t_unit = uf.get("temperature", "C")
+    m_unit = uf.get("mass", "kg")
+    mf_unit = uf.get("mass_flow", "kg/h")
+    vf_unit = uf.get("vol_flow", "m3/h")
+
     axes[0, 0].plot(sim_df["t"], sim_df["p_sys"] / 1e5, color="blue")
-    axes[0, 0].set_ylabel("Basınç (bara)")
+    axes[0, 0].set_ylabel(f"Basınç ({p_unit})")
     axes[0, 0].set_title(f"{engine_name} - Kap Basıncı Düşümü")
     axes[0, 0].grid(True)
 
     axes[0, 1].plot(sim_df["t"], sim_df["mdot_kg_s"] * 3600.0, color="purple")
-    axes[0, 1].set_ylabel("Kütlesel Tahliye (kg/h)")
+    axes[0, 1].set_ylabel(f"Kütlesel Tahliye ({mf_unit})")
     axes[0, 1].set_title("Vana Eşzamanlı Debisi")
     axes[0, 1].grid(True)
 
     axes[1, 0].plot(sim_df["t"], sim_df["m_sys"], color="red")
-    axes[1, 0].set_ylabel("Kalan Kütle (kg)")
+    axes[1, 0].set_ylabel(f"Kalan Kütle ({m_unit})")
     axes[1, 0].set_title("Sistem Kütle Azalışı")
     axes[1, 0].grid(True)
 
     rho_safe = np.maximum(np.asarray(sim_df["rho_g"], dtype=float), 1e-12)
     volumetric_flow_m3_h = (np.asarray(sim_df["mdot_kg_s"], dtype=float) * 3600.0) / rho_safe
     axes[1, 1].plot(sim_df["t"], volumetric_flow_m3_h, color="green")
-    axes[1, 1].set_ylabel("Hacimsel Tahliye (m3/h)")
+    axes[1, 1].set_ylabel(f"Hacimsel Tahliye ({vf_unit})")
     axes[1, 1].set_title("Volümetrik Çıkış Miktarı")
     axes[1, 1].grid(True)
 
     axes[2, 0].plot(sim_df["t"], sim_df["T_sys"] - 273.15, label="Gaz", color="orange")
     axes[2, 0].plot(sim_df["t"], sim_df["T_wall"] - 273.15, label="Metal", color="black", alpha=0.7)
-    axes[2, 0].set_ylabel("Sıcaklık (C)")
+    axes[2, 0].set_ylabel(f"Sıcaklık (°{t_unit})")
     axes[2, 0].set_xlabel("Zaman (s)")
     axes[2, 0].set_title("Sıcaklık Dalgalanmaları")
     axes[2, 0].legend()

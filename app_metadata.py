@@ -2,12 +2,22 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.5"
+APP_VERSION = "v2.4.6"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
-RELEASE_DATE_DISPLAY = "2 Temmuz 2026"
+RELEASE_DATE_DISPLAY = "3 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.6",
+        "3 Temmuz 2026",
+        [
+            "Plug Vana (Blowdown) vana tipi eklendi; Cd varsayilani 0.80.",
+            "Birim tercihleri dialogu eklendi; basinc, sicaklik, kutle, debi ve hacimsel akis birimleri kullanici tarafindan secilebilir.",
+            "Rapor ve grafik eksen etiketleri secilen birimlere gore dinamik olarak guncellenir.",
+            "Birim tercihleri settings dosyasina kaydedilip geri yuklenir.",
+        ],
+    ),
     (
         "v2.4.5",
         "2 Temmuz 2026",

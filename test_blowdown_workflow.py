@@ -8,6 +8,24 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 from blowdown_workflow import build_blowdown_report, select_standard_valve
+from unit_preferences import DEFAULT_UNIT_PREFS
+
+
+class _FakeConverter:
+    @staticmethod
+    def convert_pressure_from_pa(value_pa, unit_str):
+        return value_pa / 1e5
+
+    @staticmethod
+    def convert_temperature(value_k, unit_str):
+        return value_k - 273.15
+
+    @staticmethod
+    def convert_mass(value_kg, unit_str):
+        return value_kg
+
+
+FAKE_CONVERTER = _FakeConverter()
 
 
 Valve = namedtuple("Valve", ["size_in", "size_dn", "area_mm2", "letter"])
@@ -54,6 +72,8 @@ def test_build_blowdown_report_basic():
         valve_count=1,
         required_area_m2=2.0e-4,
         total_selected_area_m2=2.5e-4,
+        unit_prefs=DEFAULT_UNIT_PREFS,
+        converter=FAKE_CONVERTER,
     )
 
     assert result["verdict"] == "PASS"

@@ -46,6 +46,21 @@ LEFT_PANE_INITIAL_RATIO = 0.50
 MAIN_SETTINGS_WEIGHT = 7
 GAS_SETTINGS_WEIGHT = 3
 
+VALVE_CD_DEFAULTS = {
+    "API 526 (PSV/PRV)": "0.975",
+    "API 6D (Küresel/Blowdown)": "0.975",
+    "Globe Vana (Blowdown)": "0.75",
+    "Gate Vana (Blowdown)": "0.85",
+    "Plug Vana (Blowdown)": "0.80",
+}
+
+BLOWDOWN_VALVE_TYPES = [
+    "API 6D (Küresel/Blowdown)",
+    "Globe Vana (Blowdown)",
+    "Gate Vana (Blowdown)",
+    "Plug Vana (Blowdown)",
+]
+
 
 def _bind_copyable_readonly_text(widget) -> None:
     widget.copyable_readonly = True
@@ -451,6 +466,8 @@ def build_menu_bar(app) -> None:
     filemenu.add_command(label="PSV CSV Aktar...", command=app.export_psv_csv)
     filemenu.add_command(label="PSV PDF Aktar...", command=app.export_psv_pdf)
     filemenu.add_separator()
+    filemenu.add_command(label="Birim Tercihleri...", command=app.show_unit_preferences)
+    filemenu.add_separator()
     filemenu.add_command(label="Çıkış", command=app.quit)
     menubar.add_cascade(label="Dosya", menu=filemenu)
 
@@ -673,15 +690,26 @@ def build_left_pane_ui(app, parent) -> None:
     ttk.Label(type_frame, text="Vana Standardı / Tipi:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
     app.valve_type_combo = ttk.Combobox(
         type_frame,
-        values=["API 526 (PSV/PRV)", "API 6D (Küresel/Blowdown)"],
+        values=BLOWDOWN_VALVE_TYPES,
         state="readonly",
     )
     app.valve_type_combo.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
     app.valve_type_combo.set("API 6D (Küresel/Blowdown)")
 
+    def _on_valve_type_change(event=None):
+        vt = app.valve_type_combo.get()
+        cd_default = VALVE_CD_DEFAULTS.get(vt, "0.975")
+        from ui_mode_logic import FIELD_VALVE_CD
+        resolved = next((k for k in app.entries if FIELD_VALVE_CD in k or k in [FIELD_VALVE_CD]), FIELD_VALVE_CD)
+        if resolved in app.entries:
+            app.entries[resolved].delete(0, "end")
+            app.entries[resolved].insert(0, cd_default)
+
+    app.valve_type_combo.bind("<<ComboboxSelected>>", _on_valve_type_change)
+
     ttk.Label(
         type_frame,
-        text="Vana tipi analiz moduna göre otomatik seçilir.",
+        text="Vana tipi degistiginde Cd otomatik guncellenir, manuel degistirilebilir.",
         foreground="#4f5d6b",
     ).grid(row=1, column=0, columnspan=2, padx=5, pady=(0, 5), sticky="w")
 
