@@ -2,12 +2,22 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.7"
+APP_VERSION = "v2.4.8"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
-RELEASE_DATE_DISPLAY = "4 Temmuz 2026"
+RELEASE_DATE_DISPLAY = "5 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.8",
+        "5 Temmuz 2026",
+        [
+            "Sicaklik format duzeltmesi: Kelvin'den °C/F donusumu dogru yapiliyor (611°C hatasi giderildi).",
+            "Vana sayisi/direk sayisi alanlarinda 0 degeri dogru isleniyor (or→is None duzeltmesi).",
+            "Hiz (m/s/ft/s), guc (kW/MW/HP/BTU/s), ses seviyesi (dB) birim secenekleri eklendi.",
+            "Akustik/deşarj piping rapor satirlari secilen birimlere gore dinamik hale getirildi.",
+        ],
+    ),
     (
         "v2.4.7",
         "4 Temmuz 2026",

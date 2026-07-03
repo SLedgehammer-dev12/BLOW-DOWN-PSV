@@ -235,14 +235,17 @@ def collect_blowdown_inputs(
     if inputs["Cd_valve"] <= 0.0 or inputs["Cd_valve"] > 1.0:
         raise ValueError("Discharge katsayısı (Cd) 0 ile 1 arasında olmalıdır.")
 
+    def _int_or(val, default):
+        return int(val) if val is not None else default
+
     inputs["pipe_length_m"] = get_val(FIELD_PIPE_LENGTH) or 5.0
     pipe_dia = get_val(FIELD_PIPE_DIAMETER)
     inputs["pipe_diameter_mm"] = pipe_dia if pipe_dia is not None else None
-    inputs["elbow_count"] = int(get_val(FIELD_ELBOW_COUNT) or 2)
-    inputs["tee_count"] = int(get_val(FIELD_TEE_COUNT) or 0)
-    inputs["globe_valve_count"] = int(get_val(FIELD_GLOBE_VALVE_COUNT) or 0)
-    inputs["check_valve_count"] = int(get_val(FIELD_CHECK_VALVE_COUNT) or 1)
-    inputs["butterfly_valve_count"] = int(get_val(FIELD_BUTTERFLY_VALVE_COUNT) or 0)
+    inputs["elbow_count"] = _int_or(get_val(FIELD_ELBOW_COUNT), 2)
+    inputs["tee_count"] = _int_or(get_val(FIELD_TEE_COUNT), 0)
+    inputs["globe_valve_count"] = _int_or(get_val(FIELD_GLOBE_VALVE_COUNT), 0)
+    inputs["check_valve_count"] = _int_or(get_val(FIELD_CHECK_VALVE_COUNT), 1)
+    inputs["butterfly_valve_count"] = _int_or(get_val(FIELD_BUTTERFLY_VALVE_COUNT), 0)
     inputs["roughness_mm"] = get_val(FIELD_PIPE_ROUGHNESS) or 0.045
 
     if inputs["solver_engine"] == "HydDown" and any(key not in inputs for key in ("D_in_m", "L_m", "t_m")):

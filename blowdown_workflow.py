@@ -92,9 +92,12 @@ def build_blowdown_report(
         format_length,
         format_mass,
         format_mass_flow,
+        format_power,
         format_pressure,
+        format_sound_level,
         format_temperature,
         format_time,
+        format_velocity,
         format_vol_flow,
     )
     uf = unit_prefs or dict(DEFAULT_UNIT_PREFS)
@@ -256,11 +259,11 @@ def build_blowdown_report(
         acoustic_summary_lines = [
             "",
             "[Ek Screening] Acoustic / Mach",
-            f"Peak discharge velocity       : {discharge_velocity_m_s:.2f} m/s",
-            f"Acoustic velocity             : {acoustic_velocity_m_s:.2f} m/s",
+            f"Peak discharge velocity       : {format_velocity(discharge_velocity_m_s, uf['velocity'])}",
+            f"Acoustic velocity             : {format_velocity(acoustic_velocity_m_s, uf['velocity'])}",
             f"Peak Mach screening           : {peak_mach:.3f}",
-            f"Jet mechanical power          : {float(acoustic_result['jet_mechanical_power_w']) / 1000.0:.2f} kW",
-            f"Estimated sound power level   : {float(acoustic_result['sound_power_level_db']):.1f} dB ref 1pW",
+            f"Jet mechanical power          : {format_power(float(acoustic_result['jet_mechanical_power_w']), uf['power'])}",
+            f"Estimated sound power level   : {format_sound_level(float(acoustic_result['sound_power_level_db']), uf['sound_level'])}",
             f"Acoustic fatigue risk         : {acoustic_result['fatigue_risk']}",
             f"AIV screening index           : {float(aiv_result['aiv_screening_index']):.3f}",
             f"AIV screening risk            : {aiv_result['aiv_risk']}",

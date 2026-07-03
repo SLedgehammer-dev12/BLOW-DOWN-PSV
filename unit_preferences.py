@@ -11,6 +11,9 @@ DEFAULT_UNIT_PREFS = {
     "length": "m",
     "htc": "W/m2K",
     "time": "s",
+    "velocity": "m/s",
+    "power": "kW",
+    "sound_level": "dB",
 }
 
 VALID_UNITS = {
@@ -24,6 +27,9 @@ VALID_UNITS = {
     "length": ["m", "mm", "ft", "in"],
     "htc": ["W/m2K"],
     "time": ["s", "min"],
+    "velocity": ["m/s", "ft/s"],
+    "power": ["kW", "MW", "HP", "BTU/s"],
+    "sound_level": ["dB"],
 }
 
 UNIT_LABELS = {
@@ -37,6 +43,9 @@ UNIT_LABELS = {
     "length": "Uzunluk",
     "htc": "Isi Transferi",
     "time": "Sure",
+    "velocity": "Hiz",
+    "power": "Guc",
+    "sound_level": "Ses Seviyesi",
 }
 
 LENGTH_UNIT_MAP = {"m": 1.0, "mm": 0.001, "cm": 0.01, "in": 0.0254, "ft": 0.3048}
@@ -49,11 +58,14 @@ def format_pressure(value_pa: float, unit: str, converter) -> str:
     return f"{val:.3f} {unit}"
 
 
-def format_temperature(value_k: float, unit: str, converter) -> str:
-    val = converter.convert_temperature(value_k, unit)
-    if unit in ("C", "F"):
-        return f"{val:.2f} °{unit}"
-    return f"{val:.2f} K"
+def format_temperature(value_k: float, unit: str, converter=None) -> str:
+    if unit == "C":
+        val = value_k - 273.15
+        return f"{val:.2f} °C"
+    if unit == "F":
+        val = (value_k - 273.15) * 9.0 / 5.0 + 32.0
+        return f"{val:.2f} °F"
+    return f"{value_k:.2f} K"
 
 
 def format_mass(value_kg: float, unit: str, converter) -> str:
@@ -107,3 +119,23 @@ def format_time(value_s: float, unit: str) -> str:
     if unit == "min":
         return f"{value_s / 60.0:.1f} min"
     return f"{value_s:.1f} s"
+
+
+def format_velocity(value_m_s: float, unit: str) -> str:
+    if unit == "ft/s":
+        return f"{value_m_s / 0.3048:.2f} ft/s"
+    return f"{value_m_s:.2f} m/s"
+
+
+def format_power(value_w: float, unit: str) -> str:
+    if unit == "MW":
+        return f"{value_w / 1e6:.3f} MW"
+    if unit == "HP":
+        return f"{value_w / 745.7:.2f} HP"
+    if unit == "BTU/s":
+        return f"{value_w / 1055.06:.2f} BTU/s"
+    return f"{value_w / 1000.0:.2f} kW"
+
+
+def format_sound_level(value_db: float, unit: str) -> str:
+    return f"{value_db:.1f} {unit} ref 1pW"
