@@ -13,11 +13,19 @@ from blowdown_studio import SEGMENTED_ENGINE_NAME, UnitConverter
 from input_collection_actions import collect_blowdown_inputs
 from ui_builders import build_gas_settings_ui, build_left_pane_ui, build_main_settings_ui
 from ui_mode_logic import (
+    FIELD_BUTTERFLY_VALVE_COUNT,
+    FIELD_CHECK_VALVE_COUNT,
+    FIELD_ELBOW_COUNT,
+    FIELD_GLOBE_VALVE_COUNT,
     FIELD_INNER_DIAMETER,
     FIELD_LENGTH,
     FIELD_MAWP,
+    FIELD_PIPE_DIAMETER,
+    FIELD_PIPE_LENGTH,
+    FIELD_PIPE_ROUGHNESS,
     FIELD_START_PRESSURE,
     FIELD_START_TEMPERATURE,
+    FIELD_TEE_COUNT,
     FIELD_TARGET_PRESSURE,
     FIELD_TARGET_TIME,
     FIELD_THICKNESS,
@@ -346,6 +354,80 @@ def test_collect_blowdown_inputs_zero_valve_count_validation():
             assert "Vana sayısı" in str(exc)
             return
         raise AssertionError("Sıfır vana sayısı için ValueError bekleniyordu")
+    finally:
+        root.destroy()
+
+
+def test_collect_blowdown_inputs_zero_piping_counts():
+    root = _create_root_or_skip()
+    try:
+        app = _build_app(root)
+        app.composition = {"Methane": 100.0}
+        app.entries[FIELD_TOTAL_VOLUME].insert(0, "12")
+        app.entries[FIELD_START_PRESSURE].insert(0, "50")
+        app.entries[FIELD_START_TEMPERATURE].insert(0, "20")
+        app.entries[FIELD_TARGET_PRESSURE].insert(0, "7")
+        app.entries[FIELD_TARGET_TIME].insert(0, "600")
+        app.entries[FIELD_PIPE_LENGTH].delete(0, tk.END)
+        app.entries[FIELD_PIPE_LENGTH].insert(0, "2")
+        app.entries[FIELD_PIPE_DIAMETER].delete(0, tk.END)
+        app.entries[FIELD_PIPE_DIAMETER].insert(0, "450")
+        app.entries[FIELD_ELBOW_COUNT].delete(0, tk.END)
+        app.entries[FIELD_ELBOW_COUNT].insert(0, "0")
+        app.entries[FIELD_TEE_COUNT].delete(0, tk.END)
+        app.entries[FIELD_TEE_COUNT].insert(0, "0")
+        app.entries[FIELD_GLOBE_VALVE_COUNT].delete(0, tk.END)
+        app.entries[FIELD_GLOBE_VALVE_COUNT].insert(0, "0")
+        app.entries[FIELD_CHECK_VALVE_COUNT].delete(0, tk.END)
+        app.entries[FIELD_CHECK_VALVE_COUNT].insert(0, "0")
+        app.entries[FIELD_BUTTERFLY_VALVE_COUNT].delete(0, tk.END)
+        app.entries[FIELD_BUTTERFLY_VALVE_COUNT].insert(0, "0")
+
+        inputs = collect_blowdown_inputs(
+            app,
+            converter=app.converter,
+            fire_case_builder=build_pool_fire_case_screening,
+            p_atm=101325.0,
+            segmented_engine_name=SEGMENTED_ENGINE_NAME,
+            showwarning_fn=lambda *args, **kwargs: None,
+        )
+
+        assert inputs["elbow_count"] == 0, f"elbow_count 0 olmali, {inputs['elbow_count']}"
+        assert inputs["tee_count"] == 0
+        assert inputs["globe_valve_count"] == 0
+        assert inputs["check_valve_count"] == 0, f"check_valve_count 0 olmali, {inputs['check_valve_count']}"
+        assert inputs["butterfly_valve_count"] == 0
+        assert inputs["pipe_length_m"] == 2.0
+        assert inputs["pipe_diameter_mm"] == 450.0
+    finally:
+        root.destroy()
+
+
+def test_collect_blowdown_inputs_piping_defaults():
+    root = _create_root_or_skip()
+    try:
+        app = _build_app(root)
+        app.composition = {"Methane": 100.0}
+        app.entries[FIELD_TOTAL_VOLUME].insert(0, "12")
+        app.entries[FIELD_START_PRESSURE].insert(0, "50")
+        app.entries[FIELD_START_TEMPERATURE].insert(0, "20")
+        app.entries[FIELD_TARGET_PRESSURE].insert(0, "7")
+        app.entries[FIELD_TARGET_TIME].insert(0, "600")
+
+        inputs = collect_blowdown_inputs(
+            app,
+            converter=app.converter,
+            fire_case_builder=build_pool_fire_case_screening,
+            p_atm=101325.0,
+            segmented_engine_name=SEGMENTED_ENGINE_NAME,
+            showwarning_fn=lambda *args, **kwargs: None,
+        )
+
+        assert inputs["pipe_length_m"] == 5.0
+        assert inputs["pipe_diameter_mm"] is None
+        assert inputs["elbow_count"] == 2
+        assert inputs["check_valve_count"] == 1
+        assert inputs["roughness_mm"] == 0.045
     finally:
         root.destroy()
 

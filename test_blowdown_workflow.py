@@ -82,7 +82,98 @@ def test_build_blowdown_report_basic():
     assert "discharge_piping" in result["screening_inputs"]
 
 
+def test_build_blowdown_report_temperature_correct():
+    sim_df = pd.DataFrame(
+        [
+            {"t": 0.0, "p_sys": 11e5, "mdot_kg_s": 1.2, "T_sys": 338.15, "T_wall": 338.15, "rho_g": 8.0, "m_sys": 100.0, "h_in": 10.0},
+            {"t": 10.0, "p_sys": 3e5, "mdot_kg_s": 0.4, "T_sys": 300.0, "T_wall": 310.0, "rho_g": 3.0, "m_sys": 70.0, "h_in": 9.0},
+        ]
+    )
+    sim_df.attrs["warnings"] = []
+    sim_df.attrs["time_to_target"] = 10.0
+
+    selected = Valve('2"', "DN50", 250.0, "F")
+    result = build_blowdown_report(
+        sim_df=sim_df,
+        inputs={
+            "composition": {"Methane": 1.0},
+            "t_target_sec": 15.0,
+            "p_target_blowdown_pa": 2e5,
+            "system_type": "Boru Hattı (Pipeline)",
+            "valve_type": "API 526 (PSV/PRV)",
+        },
+        engine_name="Yerel Çözücü",
+        selected_valve=selected,
+        valve_type_label='2" F (DN50)',
+        valve_type_description="PSV/PRV Orifis",
+        valve_count=1,
+        required_area_m2=2.0e-4,
+        total_selected_area_m2=2.5e-4,
+        unit_prefs=DEFAULT_UNIT_PREFS,
+        converter=FAKE_CONVERTER,
+    )
+
+    text = result["report_text"]
+    assert "65.00 °C" in text, f"65°C raporda bulunamadi:\n{text}"
+    assert "611" not in text, "611°C hatasi hala mevcut"
+    assert "°C" in text
+
+
+def test_build_blowdown_report_imperial_units():
+    sim_df = pd.DataFrame(
+        [
+            {"t": 0.0, "p_sys": 11e5, "mdot_kg_s": 1.2, "T_sys": 338.15, "T_wall": 338.15, "rho_g": 8.0, "m_sys": 100.0, "h_in": 10.0},
+            {"t": 10.0, "p_sys": 3e5, "mdot_kg_s": 0.4, "T_sys": 300.0, "T_wall": 310.0, "rho_g": 3.0, "m_sys": 70.0, "h_in": 9.0},
+        ]
+    )
+    sim_df.attrs["warnings"] = []
+    sim_df.attrs["time_to_target"] = 10.0
+
+    selected = Valve('2"', "DN50", 250.0, "F")
+    imperial_prefs = {
+        "pressure": "psig",
+        "temperature": "F",
+        "mass": "lb",
+        "mass_flow": "lb/h",
+        "vol_flow": "ft3/min",
+        "area_small": "in2",
+        "area_large": "ft2",
+        "length": "ft",
+        "htc": "W/m2K",
+        "time": "s",
+        "velocity": "ft/s",
+        "power": "HP",
+        "sound_level": "dB",
+    }
+    result = build_blowdown_report(
+        sim_df=sim_df,
+        inputs={
+            "composition": {"Methane": 1.0},
+            "t_target_sec": 15.0,
+            "p_target_blowdown_pa": 2e5,
+            "system_type": "Boru Hattı (Pipeline)",
+            "valve_type": "API 526 (PSV/PRV)",
+        },
+        engine_name="Yerel Çözücü",
+        selected_valve=selected,
+        valve_type_label='2" F (DN50)',
+        valve_type_description="PSV/PRV Orifis",
+        valve_count=1,
+        required_area_m2=2.0e-4,
+        total_selected_area_m2=2.5e-4,
+        unit_prefs=imperial_prefs,
+        converter=FAKE_CONVERTER,
+    )
+
+    text = result["report_text"]
+    assert "°F" in text, f"Fahrenheit raporda yok:\n{text}"
+    assert "lb" in text
+    assert "ft/s" in text or "ft" in text
+
+
 if __name__ == "__main__":
     test_select_standard_valve()
     test_build_blowdown_report_basic()
+    test_build_blowdown_report_temperature_correct()
+    test_build_blowdown_report_imperial_units()
     print("TEST COMPLETED")

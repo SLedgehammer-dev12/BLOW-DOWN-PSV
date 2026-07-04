@@ -2,12 +2,20 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.8"
+APP_VERSION = "v2.4.9"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
-RELEASE_DATE_DISPLAY = "5 Temmuz 2026"
+RELEASE_DATE_DISPLAY = "6 Temmuz 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.4.9",
+        "6 Temmuz 2026",
+        [
+            "Birim tercihleri dialogu duzeltildi (eksik import giderildi, boyut buyutuldu).",
+            "Test kapsami genisletildi: 20 yeni unit_preferences testi, sicaklik/imperial/blowdown rapor testleri, sifir count testleri.",
+        ],
+    ),
     (
         "v2.4.8",
         "5 Temmuz 2026",

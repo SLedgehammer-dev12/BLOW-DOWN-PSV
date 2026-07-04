@@ -43,7 +43,28 @@ def test_discharge_piping_fallback_reynolds():
     assert result["velocity_m_s"] is None
 
 
+def test_discharge_piping_roughness_override():
+    result = calculate_discharge_piping_loss(
+        pipe_length_m=5.0,
+        pipe_diameter_mm=100.0,
+        roughness_mm=0.015,
+    )
+    assert result["details"]["roughness_mm"] == 0.015
+
+
+def test_discharge_piping_no_fittings():
+    result = calculate_discharge_piping_loss(
+        pipe_length_m=10.0,
+        pipe_diameter_mm=200.0,
+        roughness_mm=0.045,
+    )
+    assert result["fittings_loss"] == 0.0
+    assert result["total_K"] == result["pipe_friction_loss"]
+
+
 if __name__ == "__main__":
     test_discharge_piping_reynolds_and_losses()
     test_discharge_piping_fallback_reynolds()
+    test_discharge_piping_roughness_override()
+    test_discharge_piping_no_fittings()
     print("TEST COMPLETED")

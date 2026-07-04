@@ -398,10 +398,10 @@ class Application(tk.Tk):
             self.after(50, self.scrollregion_refresh)
 
     def show_unit_preferences(self):
-        from unit_preferences import VALID_UNITS, UNIT_LABELS
+        from unit_preferences import DEFAULT_UNIT_PREFS, VALID_UNITS, UNIT_LABELS
         dialog = tk.Toplevel(self)
         dialog.title("Birim Tercihleri")
-        dialog.geometry("440x420")
+        dialog.geometry("460x520")
         dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
