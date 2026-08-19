@@ -2,7 +2,6 @@
 import pandas as pd
 import CoolProp.CoolProp as CP
 import logging
-from collections import namedtuple
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -43,7 +42,16 @@ from blowdown_workflow import build_blowdown_report, run_blowdown_engine, select
 from blowdown_ui_actions import execute_blowdown_ui_flow
 from blowdown_export_ui_actions import export_blowdown_report_with_feedback
 from blowdown_reporting import export_blowdown_report_csv, export_blowdown_report_pdf
-from constants import P_ATM, R_U, T_STD
+from constants import (
+    P_ATM,
+    R_U,
+    SCMH_PER_MMSCFD,
+    SCMH_PER_SCFM,
+    T_REF_NORMAL,
+    T_REF_STANDARD_15C,
+    T_REF_STANDARD_60F,
+    T_STD,
+)
 from methodology_content import build_methodology_text
 from native_blowdown_engine import (
     DCMR_ENGINE_NAME,
@@ -83,14 +91,10 @@ from update_ui_actions import prompt_update_download_path, start_update_download
 from segmented_pipeline import (
     SEGMENTED_ENGINE_NAME,
 )
+from valve_catalog_data import API6D_Valve, API526_Orifice, load_api6d_data, load_api526_data
 
 # Constants and Data Structures
 TWO_PHASE_ENGINE_NAME = "Two-Phase Screening"
-
-API526_Orifice = namedtuple('API526_Orifice', ['letter', 'area_in2', 'area_mm2', 'size_in', 'size_dn'])
-# API 6D Full Bore Ball Valve data: Size (Inch), Area (mm2), Size (DN)
-API6D_Valve = namedtuple('API6D_Valve', ['size_in', 'area_mm2', 'size_dn'])
-Valve = namedtuple('Valve', ['area_m2', 'type', 'letter', 'area_mm2'])
 
 logging.basicConfig(filename='blowdown_studio.log', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -109,13 +113,6 @@ class UnitConverter:
         }
         self.volume_map = {
             'm3': 1.0, 'l': 0.001, 'gal': 0.00378541, 'ft3': 0.0283168
-        }
-        self.mass_flow_units = {
-            'kg/h': 1.0, 'lb/h': 0.453592,
-        }
-        self.flow_rate_map = {
-            'scmh': 1.0,
-            'mmscfd': 41666.67 / 35.3147,  # Approximately 1179.8 SCMH
         }
         
     def convert_pressure(self, value, unit_str, pressure_type='absolute'):
@@ -199,22 +196,22 @@ class UnitConverter:
         # Volumetric Flow
         MW_mix_kg_kmol = sum(CP.PropsSI('M', g) * f for g, f in composition.items()) * 1000.0
         
-        t_std = 273.15
-        p_std = 101325.0
+        t_std = T_REF_NORMAL
+        p_std = P_ATM
         scmh = 0
         
         if unit in ['nm3/h', 'scmh']:
             scmh = value
-            t_std = 273.15
+            t_std = T_REF_NORMAL
         elif unit == 'sm3/h':
             scmh = value
-            t_std = 288.15
+            t_std = T_REF_STANDARD_15C
         elif unit == 'scfm':
-            scmh = value * 1.6990
-            t_std = 288.71
+            scmh = value * SCMH_PER_SCFM
+            t_std = T_REF_STANDARD_60F
         elif unit == 'mmscfd':
-            scmh = value * 1179.86
-            t_std = 288.71
+            scmh = value * SCMH_PER_MMSCFD
+            t_std = T_REF_STANDARD_60F
         else:
             raise ValueError(f"Geçersiz debi birimi: {unit_str}")
             
@@ -234,45 +231,6 @@ class UnitConverter:
         if unit in mass_map:
             return value * mass_map[unit]
         raise ValueError(f"Geçersiz kütle birimi: {unit_str}")
-
-def load_api526_data():
-    # Returns Orifice Letter, Area (in2), Area (mm2), Size (Inch), Size (DN)
-    return [
-        API526_Orifice('D', 0.110, 71.0, '1" x 2"', 'DN25 x DN50'),
-        API526_Orifice('E', 0.196, 126.5, '1" x 2" / 1.5" x 2.5"', 'DN25 x DN50 / DN40 x DN65'),
-        API526_Orifice('F', 0.307, 198.1, '1.5" x 2.5" / 2" x 3"', 'DN40 x DN65 / DN50 x DN80'),
-        API526_Orifice('G', 0.503, 324.5, '2" x 3"', 'DN50 x DN80'),
-        API526_Orifice('H', 0.785, 506.5, '2" x 3" / 3" x 4"', 'DN50 x DN80 / DN80 x DN100'),
-        API526_Orifice('J', 1.287, 830.3, '3" x 4"', 'DN80 x DN100'),
-        API526_Orifice('K', 1.838, 1185.8, '3" x 4" / 4" x 6"', 'DN80 x DN100 / DN100 x DN150'),
-        API526_Orifice('L', 2.853, 1840.6, '4" x 6"', 'DN100 x DN150'),
-        API526_Orifice('M', 3.600, 2322.6, '4" x 6"', 'DN100 x DN150'),
-        API526_Orifice('N', 4.340, 2800.0, '4" x 6"', 'DN100 x DN150'),
-        API526_Orifice('P', 6.380, 4116.1, '4" x 6" / 6" x 8"', 'DN100 x DN150 / DN150 x DN200'),
-        API526_Orifice('Q', 11.050, 7129.0, '6" x 8" / 8" x 10"', 'DN150 x DN200 / DN200 x DN250'),
-        API526_Orifice('R', 16.000, 10322.6, '6" x 8" / 8" x 10"', 'DN150 x DN200 / DN200 x DN250'),
-        API526_Orifice('T', 26.000, 16774.2, '8" x 10"', 'DN200 x DN250'),
-    ]
-
-def load_api6d_data():
-    # Standard Full Bore Ball Valve Areas (Approximate based on nominal ID)
-    # Using A = (pi/4) * D^2
-    return [
-        API6D_Valve('1"', 506.7, 'DN25'),
-        API6D_Valve('1.5"', 1140.1, 'DN40'),
-        API6D_Valve('2"', 2026.8, 'DN50'),
-        API6D_Valve('3"', 4560.4, 'DN80'),
-        API6D_Valve('4"', 8107.3, 'DN100'),
-        API6D_Valve('6"', 18241.5, 'DN150'),
-        API6D_Valve('8"', 32429.3, 'DN200'),
-        API6D_Valve('10"', 50670.7, 'DN250'),
-        API6D_Valve('12"', 72965.9, 'DN300'),
-        API6D_Valve('14"', 100000.0, 'DN350'), # Approx
-        API6D_Valve('16"', 130000.0, 'DN400'),
-        API6D_Valve('18"', 165000.0, 'DN450'),
-        API6D_Valve('20"', 205000.0, 'DN500'),
-        API6D_Valve('24"', 295000.0, 'DN600'),
-    ]
 
 # ---------------------------------------------------------
 # LOGGING HANDLER
@@ -542,6 +500,7 @@ class Application(tk.Tk):
             set_status_text_fn=self.update_results_text,
             refresh_ui_fn=self.update_idletasks,
             showerror_fn=messagebox.showerror,
+            unit_prefs=self.unit_prefs,
         )
 
 

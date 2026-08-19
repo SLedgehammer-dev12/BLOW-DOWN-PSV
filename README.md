@@ -149,7 +149,7 @@ python test_ui_state_actions.py
 python test_psv_sizing.py
 ```
 
-**Current Status:** 24 tests passing across 4 test files
+**Current Status:** 175 tests across the full test suite
 
 ## Documentation
 
@@ -183,14 +183,16 @@ python test_psv_sizing.py
 
 ## Version History
 
-**Latest:** v2.4.3 (July 2, 2026)
+**Latest:** v2.5.0 (August 19, 2026)
 
-Key improvements in v2.4.3:
-- Enhanced scroll support with horizontal/vertical scrollbars
-- Resizable interface columns via PanedWindow
-- Improved input field visibility
-- Cross-platform mouse wheel support
-- Smarter update mechanism (filters draft/prerelease)
+Key improvements in v2.5.0:
+- API 520-1 liquid viscosity correction rewritten per Figure 34 (Reynolds + Kv, Re < 100)
+- API 526/API 6D valve data centralized in a single source module
+- API 2000 pump factors corrected to 7th edition; wetted-area limit documented (9.14 m)
+- PSV reports honor user unit preferences end-to-end
+- Vendor catalog schema validation (Cerberus)
+- Proprietary LICENSE, pyproject.toml, pre-commit, and CI test job added
+- 12 new engineering tests (full suite: 186 passed, 1 skipped)
 
 See [CHANGELOG.md](CHANGELOG.md) for complete history.
 
@@ -202,6 +204,9 @@ See [CHANGELOG.md](CHANGELOG.md) for complete history.
 - Segmented pipeline uses Darcy-Weisbach screening (not full Fanno flow)
 - Native and segmented blowdown engines are not fully validated two-phase solvers
 - Vendor catalog metadata coverage is incomplete for some vendors
+- API 2000 normal venting C-factor table uses a simplified latitude-band screening approach
+- HydDown 0.16.x multicomponent PH-solver is incompatible with numpy 2.x; the
+  multicomponent HydDown smoke test is skipped on numpy >= 2
 
 ## Disclaimer
 
@@ -227,4 +232,4 @@ Proprietary license. See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Blowdown Studio v2.4.3** - Process Safety Sizing Made Simple
+**Blowdown Studio v2.5.0** - Process Safety Sizing Made Simple

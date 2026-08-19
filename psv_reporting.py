@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
@@ -14,6 +14,14 @@ from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app_metadata import SOFTWARE_VERSION
+from constants import API520_EDITION
+from unit_preferences import (
+    DEFAULT_UNIT_PREFS,
+    format_mass_flow,
+    format_pressure,
+    format_temperature,
+    format_vol_flow,
+)
 
 
 @dataclass
@@ -66,9 +74,31 @@ def build_psv_report_bundle(
     section_xiii_validation=None,
     final_selection_readiness=None,
     psvpy_crosscheck=None,
+    unit_prefs: dict | None = None,
+    converter=None,
 ) -> PSVReportBundle:
     generated_on = datetime.now().strftime("%d.%m.%Y")
     software_version = SOFTWARE_VERSION
+    uf = unit_prefs or dict(DEFAULT_UNIT_PREFS)
+
+    def _pressure(value_pa: float) -> str:
+        if converter is None:
+            return f"{value_pa / 1e5:.3f} bara"
+        return format_pressure(value_pa, uf["pressure"], converter)
+
+    def _temp(value_k: float) -> str:
+        if converter is None:
+            return f"{value_k - 273.15:.2f} °C"
+        return format_temperature(value_k, uf["temperature"], converter)
+
+    def _mass_flow(value_kg_h: float) -> str:
+        if converter is None:
+            return f"{value_kg_h:,.2f} kg/h"
+        return format_mass_flow(value_kg_h, uf["mass_flow"], converter)
+
+    def _vol_flow(value_m3_h: float) -> str:
+        return format_vol_flow(value_m3_h, uf["vol_flow"])
+
     report_title = f"PSV ÖN BOYUTLANDIRMA VE SCREENING RAPORU - {service_type}"
     composition_text = (
         " | ".join(f"{name}={fraction * 100.0:.3f}%" for name, fraction in sorted(inputs.get("composition", {}).items()))
@@ -90,27 +120,28 @@ def build_psv_report_bundle(
         f"Gaz kompozisyonu              : {composition_text}",
         "",
         "[2] Basınç ve Relief Koşulları",
-        f"Set pressure                  : {inputs['set_pressure_pa'] / 1e5:.3f} bara",
-        f"MAWP / design pressure        : {inputs['mawp_pa'] / 1e5:.3f} bara",
+        f"Set pressure                  : {_pressure(inputs['set_pressure_pa'])}",
+        f"MAWP / design pressure        : {_pressure(inputs['mawp_pa'])}",
         f"İzin verilen overpressure     : %{inputs['overpressure_pct']:.1f}",
-        f"Relieving pressure (P1)       : {sizing.relieving_pressure_pa / 1e5:.3f} bara",
-        f"Toplam backpressure (P2)      : {sizing.backpressure_pa / 1e5:.3f} bara",
-        f"Relieving temperature         : {inputs['relieving_temperature_k'] - 273.15:.2f} °C",
+        f"Relieving pressure (P1)       : {_pressure(sizing.relieving_pressure_pa)}",
+        f"Toplam backpressure (P2)      : {_pressure(sizing.backpressure_pa)}",
+        f"Relieving temperature         : {_temp(inputs['relieving_temperature_k'])}",
     ]
 
     if service_type == "Liquid":
         report_lines.extend(
             [
                 f"Sıvı tahliye debisi           : {sizing.Q_relieving_l_min:,.2f} L/min",
-                f"Eşdeğer kütlesel debi         : {sizing.W_req_kg_h:,.2f} kg/h",
+                f"Eşdeğer kütlesel debi         : {_mass_flow(sizing.W_req_kg_h)}",
             ]
         )
     else:
-        report_lines.append(f"Gerekli kütlesel debi         : {mass_flow_kg_h:,.2f} kg/h")
+        report_lines.append(f"Gerekli kütlesel debi         : {_mass_flow(mass_flow_kg_h)}")
         if volumetric_flow_m3_h is not None:
-            report_lines.append(f"Relieving hacimsel debi       : {volumetric_flow_m3_h:,.2f} m3/h")
+            report_lines.append(f"Relieving hacimsel debi       : {_vol_flow(volumetric_flow_m3_h)}")
 
     report_lines.extend(["", "[3] API 520 Ön Boyutlandırma"])
+    report_lines.append(f"Standard referans              : {API520_EDITION}")
     if service_type == "Gas/Vapor":
         report_lines.extend(
             [
@@ -272,10 +303,10 @@ def build_psv_report_bundle(
         ("Valf Standardı", valve_type),
         ("PRV Tasarım Tipi", prv_design),
         ("Gaz Kompozisyonu", composition_text),
-        ("Set Pressure (bara)", f"{inputs['set_pressure_pa'] / 1e5:.3f}"),
-        ("Relieving Pressure (bara)", f"{sizing.relieving_pressure_pa / 1e5:.3f}"),
-        ("Backpressure (bara)", f"{sizing.backpressure_pa / 1e5:.3f}"),
-        ("Relieving Temperature (°C)", f"{inputs['relieving_temperature_k'] - 273.15:.2f}"),
+        ("Set Pressure", _pressure(inputs["set_pressure_pa"])),
+        ("Relieving Pressure", _pressure(sizing.relieving_pressure_pa)),
+        ("Backpressure", _pressure(sizing.backpressure_pa)),
+        ("Relieving Temperature", _temp(inputs["relieving_temperature_k"])),
         ("Vana Sayısı", f"{valve_count}"),
         ("Toplam Gerekli Alan (mm2)", f"{required_area_mm2:,.2f}"),
         ("Vana Başına Gerekli Alan (mm2)", f"{required_area_per_valve_mm2:,.2f}"),
@@ -285,7 +316,7 @@ def build_psv_report_bundle(
         summary_rows.extend(
             [
                 ("Sıvı Tahliye Debisi (L/min)", f"{sizing.Q_relieving_l_min:,.2f}"),
-                ("Eşdeğer Kütlesel Debi (kg/h)", f"{sizing.W_req_kg_h:,.2f}"),
+                ("Eşdeğer Kütlesel Debi", _mass_flow(sizing.W_req_kg_h)),
                 ("Kw Used", f"{sizing.Kw_used:.3f}"),
                 ("Kv Used", f"{sizing.Kv_used:.3f}"),
             ]
@@ -293,8 +324,8 @@ def build_psv_report_bundle(
     else:
         summary_rows.extend(
             [
-                ("Gerekli Kütlesel Debi (kg/h)", f"{mass_flow_kg_h:,.2f}"),
-                ("Relieving Hacimsel Debi (m3/h)", "" if volumetric_flow_m3_h is None else f"{volumetric_flow_m3_h:,.2f}"),
+                ("Gerekli Kütlesel Debi", _mass_flow(mass_flow_kg_h)),
+                ("Relieving Hacimsel Debi", "" if volumetric_flow_m3_h is None else _vol_flow(volumetric_flow_m3_h)),
                 ("Kd Used", f"{sizing.Kd:.3f}"),
                 ("Kc Used", f"{sizing.Kc:.3f}"),
             ]

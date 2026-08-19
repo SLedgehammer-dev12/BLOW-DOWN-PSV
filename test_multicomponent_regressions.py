@@ -1,9 +1,21 @@
 import math
 
+import numpy
+import pytest
+
 from constants import P_ATM
-from hyddown_adapter import build_hyddown_input, run_hyddown_blowdown_simulation
 from psv_preliminary import calculate_preliminary_gas_psv_area
 from segmented_pipeline import SEGMENTED_ENGINE_NAME, run_segmented_pipeline_blowdown_simulation
+
+pytest.importorskip("hyddown", reason="hyddown is an optional third-party engine")
+
+from hyddown_adapter import build_hyddown_input, run_hyddown_blowdown_simulation
+
+_numpy_major = int(numpy.__version__.split(".")[0])
+_requires_numpy_lt_2 = pytest.mark.skipif(
+    _numpy_major >= 2,
+    reason="hyddown 0.16.x multicomponent PH-solver is incompatible with numpy 2.x",
+)
 
 
 HEAVY_NATURAL_GAS = {
@@ -92,6 +104,7 @@ def test_multicomponent_segmented_pipeline_smoke():
     assert {"segment_re", "segment_f"}.issubset(sim_df.columns)
 
 
+@_requires_numpy_lt_2
 def test_multicomponent_hyddown_smoke():
     inputs = _build_pipeline_inputs(
         LIGHT_NATURAL_GAS,

@@ -9,7 +9,6 @@ from constants import P_ATM, R_U
 from materials import carbon_steel_cp_j_kgk
 from thermodynamic_utils import build_state, evaluate_phase_screening, get_h_inner, update_state_from_rho_u_gas
 
-
 NATIVE_ENGINE_NAME = "Yerel Çözücü"
 DCMR_ENGINE_NAME = "DCMR Rijnmond (Analitik)"
 
@@ -120,6 +119,8 @@ def run_native_blowdown_simulation(inputs, vana_alani_m2, progress_callback=None
     cd_val = inputs.get("Cd_valve", inputs.get("Cd", 0.975))
     kb_val = inputs.get("Kb", 1.0)
     p_old = p_sys
+    dm_kg_s = 0.0
+    h_in = 0.0
 
     while p_sys > target_pressure:
         if abort_flag and abort_flag.is_set():
@@ -238,7 +239,6 @@ def find_native_blowdown_area(inputs, progress_callback=None, abort_flag=None):
     a_high = min(pipe_area, 2.0) if pipe_area else 2.0
     a_low = 1e-8
     max_iter = 35
-    converged = False
 
     for i in range(max_iter):
         if abort_flag and abort_flag.is_set():
@@ -258,12 +258,11 @@ def find_native_blowdown_area(inputs, progress_callback=None, abort_flag=None):
         else:
             a_high = a_mid
 
-    if not converged:
-        import warnings
-        warnings.warn(
-            f"find_native_blowdown_area: did not converge after {max_iter} iterations. "
-            f"Result ~ {a_mid:.6f} m2 ({a_mid*1e6:.1f} mm2) may not meet 2% tolerance."
-        )
+    import warnings
+    warnings.warn(
+        f"find_native_blowdown_area: did not converge after {max_iter} iterations. "
+        f"Result ~ {a_mid:.6f} m2 ({a_mid*1e6:.1f} mm2) may not meet 2% tolerance."
+    )
     return a_mid
 
 
@@ -308,6 +307,11 @@ def run_dcmr_blowdown_simulation(inputs, vana_alani_m2, progress_callback=None, 
     """
     DCMR Rijnmond analytical blowdown: closed-form solution (no ODE).
     Assumes adiabatic isentropic expansion and continuously choked flow.
+
+    Reference: DCMR Milieudienst Rijnmond depressurization methodology as used
+    in Dutch Veiligheidsrapport (VR) applications. The closed-form expression
+    should be confirmed against the applicable DCMR/VR guideline before use in
+    a final submission.
     """
     del progress_callback, abort_flag
 

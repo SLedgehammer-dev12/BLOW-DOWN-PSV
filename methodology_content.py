@@ -1,15 +1,24 @@
 from __future__ import annotations
 
+from constants import API520_EDITION, API521_EDITION, API2000_EDITION, ASME_XIII_EDITION
+
 
 def build_methodology_text(*, native_engine_name: str, segmented_engine_name: str, two_phase_engine_name: str, dcmr_engine_name: str = "") -> str:
     return (
         "HESAPLAMA METODOLOJISI VE STANDARTLAR\n\n"
         "Bu program, basincli sistemlerin (boru hatti, tank, kap) guvenli tahliyesini "
-        "uluslararasi endustri standartlarina (API) gore analiz eder. Temel calisma "
+        "uluslararasi endustri standartlarina (API/ASME) gore analiz eder. Temel calisma "
         "prensipleri asagida ozetlenmistir:\n\n"
+        f"Referans standardlar:\n"
+        f"- {API520_EDITION}\n"
+        f"- {API521_EDITION}\n"
+        f"- {API2000_EDITION}\n"
+        f"- {ASME_XIII_EDITION}\n"
+        "Asagida verilen denklem numaralari bu basimlara karsilik gelir; final tasarim "
+        "lisansli standart kopyasi uzerinden dogrulanmalidir.\n\n"
         "1. API 520 (PSV/Vana Boyutlandirma)\n"
         "------------------------------------\n"
-        "PSV modu, API 520-1'e gore Gas/Vapor, Steam ve Liquid servislerinde on boyutlandirma yapar.\n"
+        f"PSV modu, {API520_EDITION} gore Gas/Vapor, Steam ve Liquid servislerinde on boyutlandirma yapar.\n"
         "- Set pressure, allowable overpressure ve atmosfer basinci kullanilarak relieving pressure (P1) kurulur.\n"
         "- Gas/Vapor icin kritik akista API 520-1 Eq. (9), subkritik akista Eq. (19) ve Eq. (22) yaklasimi kullanilir.\n"
         "- Steam icin Eq. (26) + Napier KN + Table 13 KSH uygulanir; tablo disi durumlarda gas/vapor fallback kullanilir.\n"
@@ -28,7 +37,8 @@ def build_methodology_text(*, native_engine_name: str, segmented_engine_name: st
          f"- {dcmr_engine_name} motoru, DCMR Milieudienst Rijnmond tarafindan yayinlanan analitik kapali-formul yaklasimini kullanir. "
          "Adyabatik-izentropik genlesme ve surekli choked akis kabuluyle anlik (iterasyonsuz) sonuc uretir. "
          "Duvar isi transferini ihmal ettigi icin konservatif (daha buyuk alan) sonuc verir. "
-         "Hollanda VR (Veiligheidsrapport) basvurularinda referans yontem olarak kabul edilir.\n"
+         "Hollanda VR (Veiligheidsrapport) basvurularinda referans yontem olarak kabul edilir; "
+         "kapali-formul ilgili DCMR/VR kilavuzu ile teyit edilmelidir.\n"
         "- Her iki motor da hedef basinca inis suresine gore gerekli tahliye alanini iteratif olarak bulur.\n"
         "- API 521 fire case secenegi aktifse hedef, screening seviyesinde 50% design pressure / 15 min kuralindan turetilir; open-pool-fire heat input kabulu ayri satirda raporlanir.\n"
         "- MDMT ve sicaklik profilleri screening amaclidir; yangin, validated two-phase ve dagitilmis boru hatti transientleri icin ileri dogrulama gerekebilir.\n\n"

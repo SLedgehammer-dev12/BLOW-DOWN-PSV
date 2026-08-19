@@ -2,6 +2,10 @@ import math
 import os
 import sys
 
+import pytest
+
+pytest.importorskip("hyddown", reason="hyddown is an optional third-party engine")
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 

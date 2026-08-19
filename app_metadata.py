@@ -2,12 +2,26 @@ from __future__ import annotations
 
 
 APP_NAME = "Blowdown Studio"
-APP_VERSION = "v2.4.9"
+APP_VERSION = "v2.5.0"
 SOFTWARE_VERSION = f"{APP_NAME} {APP_VERSION}"
-RELEASE_DATE_DISPLAY = "6 Temmuz 2026"
+RELEASE_DATE_DISPLAY = "19 Ağustos 2026"
 
 
 RELEASE_HISTORY: list[tuple[str, str, list[str]]] = [
+    (
+        "v2.5.0",
+        "19 Ağustos 2026",
+        [
+            "API 520-1 sıvı viskozite düzeltmesi yeniden yazıldı: Reynolds sayısı ve Figure 34 Kv tablosu (Re<100 kriteri) uygulandı.",
+            "API 526 / API 6D vana verileri tek kaynakta toplandı (valve_catalog_data.py).",
+            "Native blowdown motorunda dongu oncesi NameError ve olu degisken temizlendi.",
+            "PSV raporu kullanicinin birim tercihlerine gore formatlaniyor.",
+            "Vendor katalog kayitlari Cerberus semasiyla dogrulanıyor.",
+            "API 2000 pompa faktorleri 7. basima gore duzeltildi (0.94 / 1.01 / 2.02).",
+            "LICENSE, pyproject.toml, pre-commit ve CI test isi eklendi; bagimliliklar sabitlendi.",
+            "Test kapsami genisletildi: 12 yeni muhendislik testi (toplam 186 gecti, 1 skip).",
+        ],
+    ),
     (
         "v2.4.9",
         "6 Temmuz 2026",

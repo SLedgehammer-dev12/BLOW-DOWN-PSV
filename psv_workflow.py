@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 import CoolProp.CoolProp as CP
 
@@ -13,9 +13,9 @@ from psv_preliminary import (
     calculate_preliminary_liquid_psv_area,
     calculate_preliminary_steam_psv_area,
 )
-from psvpy_adapter import PSVPyCrosscheckResult, build_psvpy_crosscheck
-from psv_reporting import build_psv_report_bundle, PSVReportBundle
+from psv_reporting import PSVReportBundle, build_psv_report_bundle
 from psv_vendor_catalog import estimate_family_kb, evaluate_vendor_models_for_gas_service
+from psvpy_adapter import PSVPyCrosscheckResult, build_psvpy_crosscheck
 from vendor_final_selection import evaluate_vendor_final_selection_readiness
 
 
@@ -48,6 +48,7 @@ def execute_psv_workflow(
     load_api526_data,
     load_api6d_data,
     converter,
+    unit_prefs: dict | None = None,
 ) -> PSVWorkflowResult:
     preliminary_kb_source = "N/A"
     preliminary_extra_warnings: list[str] = []
@@ -92,7 +93,6 @@ def execute_psv_workflow(
             preliminary_kb_source = "Manual user input"
         sizing = calculate_preliminary_liquid_psv_area(inputs, standard_orifice_areas_mm2=standard_areas_mm2)
 
-    required_area_m2 = sizing.A_req_m2
     required_area_mm2 = sizing.A_req_mm2
     mass_flow_kg_h = inputs.get("W_req_kg_h", getattr(sizing, "W_req_kg_h", 0.0))
     rho_g = getattr(sizing, "rho_relieving_kg_m3", 0.0) or 0.0
@@ -111,7 +111,6 @@ def execute_psv_workflow(
         else:
             preliminary_extra_warnings.append("psvpy cross-check bu surumde yalniz Steam/Liquid servis icin aktiftir.")
 
-    required_area_per_valve_m2 = required_area_m2 / valve_count
     required_area_per_valve_mm2 = required_area_mm2 / valve_count
 
     valve_data = load_api526_data() if "API 526" in valve_type else load_api6d_data()
@@ -251,6 +250,8 @@ def execute_psv_workflow(
         section_xiii_validation=section_xiii_validation,
         final_selection_readiness=final_selection_readiness,
         psvpy_crosscheck=psvpy_crosscheck,
+        unit_prefs=unit_prefs,
+        converter=converter,
     )
 
     return PSVWorkflowResult(

@@ -1,0 +1,27 @@
+Blowdown Studio — Proprietary License
+
+Copyright (c) 2026 Blowdown Studio contributors. All rights reserved.
+
+This software and its source code are proprietary and confidential. You may
+download, use, and execute this software solely for engineering evaluation
+purposes in accordance with the terms provided by the copyright holder.
+
+You may NOT, without the express written permission of the copyright holder:
+
+  - redistribute, sublicense, sell, lease, or transfer the software;
+  - modify, adapt, translate, reverse engineer, decompile, or disassemble the
+    software (except as expressly permitted by applicable law);
+  - remove or alter any proprietary notices or labels contained in the
+    software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+Engineering Disclaimer: This application is an engineering aid only. Final
+pressure safety valve selection, depressuring analysis, and tank venting
+design require verification against the applicable API/ASME standards, vendor
+datasheets, and review by a licensed professional engineer.

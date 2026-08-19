@@ -5,6 +5,66 @@ All notable changes to Blowdown Studio are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.5.0] - 2026-08-19
+
+### Added
+- API 526 / API 6D valve data centralized in `valve_catalog_data.py` (single source of truth)
+- Vendor catalog schema validation with Cerberus (`_VENDOR_RECORD_SCHEMA`)
+- Proprietary `LICENSE`, `pyproject.toml`, pre-commit hooks, and a CI test job
+- Edition reference constants in `constants.py` (`API520_EDITION`, `API521_EDITION`, `API2000_EDITION`, `ASME_XIII_EDITION`)
+- Standard reference line in PSV reports; DCMR Rijnmond citation in methodology
+- 12 new engineering regression tests (`test_engineering_refinements.py`); full suite: 186 passed, 1 skipped
+
+### Fixed
+- API 520-1 liquid viscosity correction rewritten per Figure 34: correct Reynolds formula
+  (`Re = 18800 * Q_gpm * G / (mu * sqrt(A))`) and Kv table applied when Re < 100
+- Native blowdown engine `NameError` when the time loop never runs (`dm_kg_s`, `h_in` uninitialized)
+- Removed dead `converged` variable in `find_native_blowdown_area`
+- API 2000 liquid movement pump factors corrected to 7th edition (pump-in 1.01/2.02, pump-out 0.94/2.02)
+- API 2000 wetted area height limit documented to 9.14 m (30 ft)
+- HydDown multicomponent PH-solver skipped on numpy >= 2 (incompatible third-party dependency)
+
+### Changed
+- PSV reports honor user unit preferences end-to-end (`blowdown_studio` → `execution_ui_actions` → `psv_workflow` → `psv_reporting`)
+- Unit conversion constants centralized (`T_REF_NORMAL`, `T_REF_STANDARD_15C`, `T_REF_STANDARD_60F`, `SCMH_PER_SCFM`, `SCMH_PER_MMSCFD`); dead `flow_rate_map`/`mass_flow_units` removed
+- `requirements.txt` pinned (`~=`) and trimmed; `hyddown==0.16.2`, `cerberus` added; unused `psvpy`/`tqdm` dropped
+- `psv_preliminary.py` no longer uses the legacy `1/sqrt(1+170/Re)` approximation
+- README updated for v2.5.0 and current test counts
+
+## [v2.4.9] - 2026-07-06
+
+### Fixed
+- Unit preferences dialog missing import fixed; dialog enlarged
+- Expanded test coverage: 20 new unit_preferences tests, temperature/imperial/blowdown report tests, and zero valve-count tests
+
+## [v2.4.8] - 2026-07-05
+
+### Fixed
+- Temperature formatting fixed: Kelvin to Celsius/Fahrenheit conversion now correct (611 °C bug resolved)
+- Zero value handling for valve count / pole count fields (`or` vs `is None` fix)
+
+### Added
+- Velocity (m/s, ft/s), power (kW, MW, HP, BTU/s), and sound level (dB) unit options
+- Acoustic/discharge piping report lines now render dynamically per selected units
+
+## [v2.4.7] - 2026-07-04
+
+### Added
+- Discharge piping (API 521) input fields: pipe length, inner diameter, elbow/tee/valve counts, roughness
+- User-supplied piping parameters now used directly; blank fields fall back to defaults
+- Roughness and fitting details shown separately in the report
+
+### Fixed
+- HydDown `numpy.testing` import error resolved (build.spec)
+
+## [v2.4.6] - 2026-07-03
+
+### Added
+- Plug Valve (Blowdown) valve type; default Cd 0.80
+- Unit preferences dialog for pressure, temperature, mass, flow rate, and volumetric flow units
+- Report and plot axis labels updated dynamically per selected units
+- Unit preferences persisted to and restored from settings files
+
 ## [v2.4.5] - 2026-07-02
 
 ### Added
@@ -133,6 +193,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Composition management with CoolProp fluid list
 - Unit conversion for pressure, temperature, length, volume, and flow rates
 
+[v2.5.0]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.9...v2.5.0
+[v2.4.9]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.8...v2.4.9
+[v2.4.8]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.7...v2.4.8
+[v2.4.7]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.6...v2.4.7
+[v2.4.6]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.5...v2.4.6
+[v2.4.5]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.4...v2.4.5
+[v2.4.4]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.3...v2.4.4
 [v2.4.3]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.2...v2.4.3
 [v2.4.2]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.1...v2.4.2
 [v2.4.1]: https://github.com/SLedgehammer-dev12/BLOW-DOWN-PSV/compare/v2.4.0...v2.4.1

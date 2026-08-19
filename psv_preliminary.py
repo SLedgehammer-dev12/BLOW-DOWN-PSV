@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
-from typing import Dict, Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from typing import Dict
 
 import CoolProp.CoolProp as CP
 
 from api520_steam_ksh import lookup_superheat_correction_factor_si
-from constants import P_ATM, R_U
+from constants import P_ATM
 
 
 @dataclass
@@ -177,10 +178,85 @@ def napier_correction_kn_si(relieving_pressure_pa: float) -> float:
     raise ValueError("Napier KN only applies up to 22,057 kPa relieving pressure.")
 
 
+# Digitized screening approximation of API 520-1 (2014) Figure 34
+# "Capacity correction factors due to viscosity". Values are read from the
+# published curve at the listed Reynolds numbers and linearly interpolated in
+# between. This is a screening aid only; final design must use the licensed
+# standard graph or vendor software.
+_LIQUID_KV_REYNOLDS = (
+    10.0,
+    20.0,
+    50.0,
+    100.0,
+    200.0,
+    500.0,
+    1000.0,
+    2000.0,
+    5000.0,
+    10000.0,
+    20000.0,
+    50000.0,
+    100000.0,
+)
+_LIQUID_KV_VALUES = (
+    0.45,
+    0.52,
+    0.62,
+    0.70,
+    0.77,
+    0.85,
+    0.90,
+    0.93,
+    0.96,
+    0.98,
+    0.99,
+    1.00,
+    1.00,
+)
+
+
 def liquid_viscosity_correction_kv(reynolds: float) -> float:
+    """Return API 520-1 viscosity correction factor Kv from Reynolds number.
+
+    Uses the digitized Figure 34 curve (screening approximation). For Reynolds
+    numbers at or above the curve limit the correction factor is 1.0 (no
+    viscosity derating).
+    """
     if reynolds <= 0.0:
         raise ValueError("Liquid Reynolds number must be positive.")
-    return 1.0 / math.sqrt(1.0 + 170.0 / reynolds)
+    if reynolds <= _LIQUID_KV_REYNOLDS[0]:
+        return _LIQUID_KV_VALUES[0]
+    if reynolds >= _LIQUID_KV_REYNOLDS[-1]:
+        return 1.0
+
+    for (re0, kv0), (re1, kv1) in zip(
+        zip(_LIQUID_KV_REYNOLDS, _LIQUID_KV_VALUES),
+        zip(_LIQUID_KV_REYNOLDS[1:], _LIQUID_KV_VALUES[1:]),
+    ):
+        if re0 <= reynolds <= re1:
+            frac = (reynolds - re0) / max(re1 - re0, 1e-12)
+            return kv0 + frac * (kv1 - kv0)
+    return 1.0
+
+
+def liquid_reynolds_number(
+    Q_req_l_min: float,
+    specific_gravity: float,
+    viscosity_cp: float,
+    area_mm2: float,
+) -> float:
+    """Return API 520-1 liquid Reynolds number R.
+
+    Per API 520-1 (2014) 7.3.2.4: R = 18800 * V * G / (mu * sqrt(A)), with
+    V in US gpm, G specific gravity, mu in centipoise and A in in^2.
+    """
+    if viscosity_cp <= 0.0:
+        raise ValueError("Liquid viscosity must be positive.")
+    if area_mm2 <= 0.0:
+        raise ValueError("Liquid effective area must be positive.")
+    q_gpm = Q_req_l_min / 3.785411784
+    area_in2 = area_mm2 / 645.16
+    return 18800.0 * q_gpm * specific_gravity / (viscosity_cp * math.sqrt(area_in2))
 
 
 def _ideal_gas_k_from_state(state: CP.AbstractState) -> float:
@@ -419,6 +495,8 @@ def size_liquid_area_api520(
         raise ValueError("Liquid relieving capacity must be positive.")
     if specific_gravity <= 0.0:
         raise ValueError("Liquid specific gravity must be positive.")
+    if viscosity_cp <= 0.0:
+        raise ValueError("Liquid viscosity must be positive.")
 
     p1_kpag = max(relieving_pressure_pa - P_ATM, 0.0) / 1000.0
     p2_kpag = max(backpressure_pa - P_ATM, 0.0) / 1000.0
@@ -436,26 +514,30 @@ def size_liquid_area_api520(
     selected_area_mm2 = preliminary_area_mm2
     corrected_area_mm2 = preliminary_area_mm2
 
-    if viscosity_cp > 100.0:
+    # Viscosity correction per API 520-1 7.3.2.4 / Figure 34. The correction
+    # applies only when the liquid Reynolds number falls below 100; the loop
+    # converges on the corrected area because Kv depends on area via R.
+    area_for_re = preliminary_area_mm2
+    for _ in range(12):
+        reynolds = liquid_reynolds_number(Q_req_l_min, specific_gravity, viscosity_cp, area_for_re)
+        if reynolds >= 100.0:
+            kv_used = 1.0
+            corrected_area_mm2 = preliminary_area_mm2
+            break
+        if reynolds < 80.0:
+            warnings.append("Liquid Reynolds number 80'in altında; API 520 Figure 34 screening aralığı dışına çıkıyor.")
+        kv_used = liquid_viscosity_correction_kv(max(reynolds, 1e-6))
+        corrected_area_mm2 = preliminary_area_mm2 / max(kv_used, 1e-12)
         if standard_areas:
-            selected_area_mm2 = next((area for area in standard_areas if area >= preliminary_area_mm2), standard_areas[-1])
-        for _ in range(12):
-            reynolds = 18800.0 * Q_req_l_min * specific_gravity / max(viscosity_cp * selected_area_mm2, 1e-12)
-            if reynolds < 80.0:
-                warnings.append("Liquid Reynolds number 80'in altında; API 520 Eq. (34) screening dışına çıkıyor.")
-            kv_used = liquid_viscosity_correction_kv(max(reynolds, 1e-6))
-            corrected_area_mm2 = preliminary_area_mm2 / max(kv_used, 1e-12)
-            if not standard_areas:
-                selected_area_mm2 = corrected_area_mm2
-                break
-            if corrected_area_mm2 <= selected_area_mm2 + 1e-9:
-                break
-            next_area = next((area for area in standard_areas if area > selected_area_mm2), standard_areas[-1])
-            if next_area <= selected_area_mm2 + 1e-9:
-                break
-            selected_area_mm2 = next_area
+            next_area = next((area for area in standard_areas if area >= corrected_area_mm2), standard_areas[-1])
+        else:
+            next_area = corrected_area_mm2
+        selected_area_mm2 = next_area
+        if abs(next_area - area_for_re) <= 1e-9 * max(1.0, next_area):
+            break
+        area_for_re = next_area
     else:
-        reynolds = 18800.0 * Q_req_l_min * specific_gravity / max(viscosity_cp * max(selected_area_mm2, 1e-9), 1e-12)
+        warnings.append("Liquid viscosity düzeltmesi yakınsamadı; son iterasyon değeri kullanıldı.")
 
     if W_req_kg_h is None and rho_relieving_kg_m3 is not None:
         W_req_kg_h = Q_req_l_min / 1000.0 * rho_relieving_kg_m3 * 60.0

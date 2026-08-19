@@ -14,6 +14,7 @@ def run_psv_ui_flow_with_feedback(
     set_status_text_fn,
     refresh_ui_fn,
     showerror_fn,
+    unit_prefs=None,
 ):
     try:
         app.last_psv_report_bundle = None
@@ -34,6 +35,7 @@ def run_psv_ui_flow_with_feedback(
             load_api526_data=load_api526_data,
             load_api6d_data=load_api6d_data,
             converter=converter,
+            unit_prefs=unit_prefs,
         )
         return apply_result_fn(app, workflow, app.vendor_catalog_path)
     except Exception as exc:

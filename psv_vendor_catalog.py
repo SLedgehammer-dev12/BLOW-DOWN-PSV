@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from functools import lru_cache
 import csv
 import json
-from pathlib import Path
 import re
 import sys
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
+
+from cerberus import Validator
 
 from psv_preliminary import PSVGasSizingResult, coefficient_c_si, coefficient_f2
+from valve_catalog_data import api526_effective_orifices
 
 
 def _resource_base_dir() -> Path:
@@ -96,22 +99,7 @@ def _resolve_vendor_catalog_source(path: str | Path | None = None) -> Path:
 
 
 def _api526_effective_orifices() -> list[tuple[str, float, str, str]]:
-    return [
-        ("D", 71.0, '1" x 2"', "DN25 x DN50"),
-        ("E", 126.5, '1" x 2" / 1.5" x 2.5"', "DN25 x DN50 / DN40 x DN65"),
-        ("F", 198.1, '1.5" x 2.5" / 2" x 3"', "DN40 x DN65 / DN50 x DN80"),
-        ("G", 324.5, '2" x 3"', "DN50 x DN80"),
-        ("H", 506.5, '2" x 3" / 3" x 4"', "DN50 x DN80 / DN80 x DN100"),
-        ("J", 830.3, '3" x 4"', "DN80 x DN100"),
-        ("K", 1185.8, '3" x 4" / 4" x 6"', "DN80 x DN100 / DN100 x DN150"),
-        ("L", 1840.6, '4" x 6"', "DN100 x DN150"),
-        ("M", 2322.6, '4" x 6"', "DN100 x DN150"),
-        ("N", 2800.0, '4" x 6"', "DN100 x DN150"),
-        ("P", 4116.1, '4" x 6" / 6" x 8"', "DN100 x DN150 / DN150 x DN200"),
-        ("Q", 7129.0, '6" x 8" / 8" x 10"', "DN150 x DN200 / DN200 x DN250"),
-        ("R", 10322.6, '6" x 8" / 8" x 10"', "DN150 x DN200 / DN200 x DN250"),
-        ("T", 16774.2, '8" x 10"', "DN200 x DN250"),
-    ]
+    return list(api526_effective_orifices())
 
 
 def _balanced_bellows_curve() -> tuple[KbCurvePoint, ...]:
@@ -249,6 +237,42 @@ def _records_from_csv(source_path: Path) -> tuple[str, list[dict]]:
     return source_path.stem, records
 
 
+_VENDOR_RECORD_SCHEMA = {
+    "manufacturer": {"type": "string", "required": True, "empty": False},
+    "series": {"type": "string", "required": True, "empty": False},
+    "model_code": {"type": "string", "required": True, "empty": False},
+    "design_type": {"type": "string", "required": True, "empty": False},
+    "orifice_letter": {"type": "string", "required": True, "empty": False},
+    "inlet_outlet_size_in": {"type": "string", "required": True, "empty": False},
+    "inlet_outlet_size_dn": {"type": "string", "required": True, "empty": False},
+    "effective_area_mm2": {"type": "number", "required": True, "coerce": float},
+    "actual_area_mm2": {"type": "number", "required": True, "coerce": float},
+    "certified_kd_gas": {"type": "number", "required": True, "coerce": float},
+}
+
+
+def validate_vendor_records(records: Iterable[dict]) -> tuple[list[dict], list[str]]:
+    """Validate and coerce vendor catalog records.
+
+    Returns (valid_records, errors). Numeric fields are coerced to float so both
+    JSON numbers and CSV strings are accepted. Records missing required fields
+    are skipped and reported in ``errors``.
+    """
+    validator = Validator(_VENDOR_RECORD_SCHEMA, allow_unknown=True)
+    valid: list[dict] = []
+    errors: list[str] = []
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            errors.append(f"Kayit {index}: mapping degil ({type(record).__name__}).")
+            continue
+        normalized = validator.validated(record)
+        if normalized is None:
+            errors.append(f"Kayit {index}: {validator.errors}")
+            continue
+        valid.append(normalized)
+    return valid, errors
+
+
 @lru_cache(maxsize=8)
 def _load_vendor_catalog_payload_cached(path_key: str) -> dict:
     source_path = _resolve_vendor_catalog_source(None if path_key == "__default__" else path_key)
@@ -277,6 +301,11 @@ def _load_vendor_catalog_cached(path_key: str) -> tuple[VendorPSVModel, ...]:
     else:
         payload = json.loads(source_path.read_text(encoding="utf-8"))
         _, records = _records_from_payload(payload, source_path)
+
+    records, validation_errors = validate_vendor_records(records)
+    if not records:
+        detail = "; ".join(validation_errors[:5]) if validation_errors else "dosya bos"
+        raise ValueError(f"Vendor katalog dosyasi gecerli kayit icermiyor: {detail}")
 
     models: list[VendorPSVModel] = []
     for record in records:

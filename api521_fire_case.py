@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 
 from constants import P_ATM
-
 
 POOL_FIRE_COEFFICIENTS_SI = {
     "Adequate drainage + firefighting": 43200.0,
@@ -51,6 +50,14 @@ def estimate_cylindrical_wetted_area_m2(
     length_m: float,
     include_ends: bool = True,
 ) -> float:
+    """Estimate fire-exposed wetted area of a horizontal cylindrical vessel.
+
+    Screening approximation: the full shell (and, optionally, half of each
+    head) is assumed wetted. Per API 521 the wetted surface is normally limited
+    to the exposed area up to 9.14 m (30 ft) elevation; for vessels whose
+    diameter exceeds this limit this helper over-estimates (conservative) the
+    wetted area.
+    """
     if outer_diameter_m <= 0.0 or length_m <= 0.0:
         raise ValueError("Fire wetted area icin diameter ve length pozitif olmalidir.")
     area = math.pi * outer_diameter_m * length_m
