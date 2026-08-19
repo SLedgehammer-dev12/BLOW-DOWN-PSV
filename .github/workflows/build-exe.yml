@@ -29,12 +29,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-timeout
+          sudo apt-get update
+          sudo apt-get install -y xvfb
 
       - name: Run tests
         env:
           MPLBACKEND: Agg
         run: |
-          python -m pytest -q
+          xvfb-run -a python -m pytest -q
 
   build:
     name: Build Windows EXE
